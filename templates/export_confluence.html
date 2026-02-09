@@ -1,0 +1,158 @@
+<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #2d3748; line-height: 1.6;">
+    
+    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 12px; margin-bottom: 20px;">
+        <h1 style="font-size: 32px; margin: 0 0 10px 0; color: white;">📋 Initiative Hierarchy Report</h1>
+        <div style="font-size: 16px; opacity: 0.95; margin-bottom: 5px;">Fix Version: <strong>{{ fix_version }}</strong> | Generated: <strong>{{ generated_date }}</strong></div>
+        {% if query %}
+        <div style="font-size: 14px; opacity: 0.9; margin-top: 8px;">🔍 Query: {{ query }}</div>
+        {% endif %}
+    </div>
+    
+    <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; background: white; border: 1px solid #e2e8f0;">
+        <tr>
+            <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: 600; background: #f7fafc; width: 30%;">Program Increment / Fix Version</td>
+            <td style="padding: 10px; border: 1px solid #e2e8f0;"><strong>{{ fix_version }}</strong></td>
+        </tr>
+        <tr>
+            <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: 600; background: #f7fafc;">Total Initiatives</td>
+            <td style="padding: 10px; border: 1px solid #e2e8f0;"><strong>{{ initiatives|length }}</strong></td>
+        </tr>
+        {% if is_limited %}
+        <tr>
+            <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: 600; background: #fff7ed;">Initiatives Limit Applied</td>
+            <td style="padding: 10px; border: 1px solid #e2e8f0; background: #fff7ed;"><strong style="color: #d97706;">⚠️ Limited to {{ limit_count }} of {{ original_count }} initiatives</strong></td>
+        </tr>
+        {% endif %}
+        <tr>
+            <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: 600; background: #f7fafc;">Initiatives with Features</td>
+            <td style="padding: 10px; border: 1px solid #e2e8f0;"><strong>{{ initiatives_with_features }}</strong></td>
+        </tr>
+        <tr>
+            <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: 600; background: #f7fafc;">Total Areas/Projects</td>
+            <td style="padding: 10px; border: 1px solid #e2e8f0;"><strong>{{ all_areas|length }}</strong></td>
+        </tr>
+    </table>
+    
+    <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #e2e8f0;">
+        <h3 style="margin: 0 0 15px 0; color: #2d3748; font-size: 16px;">Risk Probability Legend</h3>
+        <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+                <td style="padding: 8px; border: 1px solid #e2e8f0; background: #f7fafc; text-align: center; width: 12.5%;">
+                    <div style="width: 24px; height: 24px; background: #e2e8f0; border: 2px solid #cbd5e0; border-radius: 4px; margin: 0 auto 5px;"></div>
+                    <div style="font-size: 12px; font-weight: 600;">None/Unknown</div>
+                </td>
+                <td style="padding: 8px; border: 1px solid #e2e8f0; background: #f7fafc; text-align: center; width: 12.5%;">
+                    <div style="width: 24px; height: 24px; background: #48bb78; border: 2px solid #cbd5e0; border-radius: 4px; margin: 0 auto 5px;"></div>
+                    <div style="font-size: 12px; font-weight: 600;">1 - Low Risk</div>
+                </td>
+                <td style="padding: 8px; border: 1px solid #e2e8f0; background: #f7fafc; text-align: center; width: 12.5%;">
+                    <div style="width: 24px; height: 24px; background: #ecc94b; border: 2px solid #cbd5e0; border-radius: 4px; margin: 0 auto 5px;"></div>
+                    <div style="font-size: 12px; font-weight: 600;">2 - Low-Medium</div>
+                </td>
+                <td style="padding: 8px; border: 1px solid #e2e8f0; background: #f7fafc; text-align: center; width: 12.5%;">
+                    <div style="width: 24px; height: 24px; background: #ed8936; border: 2px solid #cbd5e0; border-radius: 4px; margin: 0 auto 5px;"></div>
+                    <div style="font-size: 12px; font-weight: 600;">3 - Medium</div>
+                </td>
+            </tr>
+            <tr>
+                <td style="padding: 8px; border: 1px solid #e2e8f0; background: #f7fafc; text-align: center;">
+                    <div style="width: 24px; height: 24px; background: #dd6b20; border: 2px solid #cbd5e0; border-radius: 4px; margin: 0 auto 5px;"></div>
+                    <div style="font-size: 12px; font-weight: 600;">4 - Medium-High</div>
+                </td>
+                <td style="padding: 8px; border: 1px solid #e2e8f0; background: #f7fafc; text-align: center;">
+                    <div style="width: 24px; height: 24px; background: #e53e3e; border: 2px solid #cbd5e0; border-radius: 4px; margin: 0 auto 5px;"></div>
+                    <div style="font-size: 12px; font-weight: 600;">5 - High Risk</div>
+                </td>
+                <td style="padding: 8px; border: 1px solid #e2e8f0; background: #f7fafc; text-align: center;">
+                    <div style="width: 24px; height: 24px; background: #38d46e; border: 2px solid #cbd5e0; border-radius: 4px; margin: 0 auto 5px;"></div>
+                    <div style="font-size: 12px; font-weight: 600;">✓ Completed</div>
+                </td>
+                <td style="padding: 8px; border: 1px solid #e2e8f0; background: #f7fafc;"></td>
+            </tr>
+        </table>
+    </div>
+    
+    {% for initiative in initiatives %}
+    {% if initiative.features and initiative.features|length > 0 %}
+    <div style="background: white; padding: 20px; border-radius: 12px; margin-bottom: 25px; border: 1px solid #e2e8f0;">
+        <h2 style="font-size: 20px; font-weight: 700; color: #2d3748; margin: 0 0 15px 0; padding-bottom: 12px; border-bottom: 3px solid #667eea;">
+            🎯 {{ initiative.key }}: {{ initiative.summary }}
+        </h2>
+        
+        <table style="width: 100%; border-collapse: collapse; font-size: 13px; border: 1px solid #e2e8f0;">
+            <thead>
+                <tr style="background: #667eea; color: white;">
+                    <th style="padding: 12px 10px; text-align: left; font-weight: 600; border: 1px solid #5568d3; width: 20%;">Feature / Sub-Feature</th>
+                    {% for area in all_areas %}
+                    <th style="padding: 12px 10px; text-align: left; font-weight: 600; border: 1px solid #5568d3;">{{ area }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for feature in initiative.features %}
+                <tr style="background: #edf2f7;">
+                    <td style="padding: 10px; border: 1px solid #e2e8f0; vertical-align: top;">
+                        <div style="color: #667eea; font-size: 11px; font-weight: 700; text-transform: uppercase; margin-bottom: 4px;">🔹 FEATURE</div>
+                        <div style="font-weight: 700; color: #2d3748; margin-bottom: 3px;">{{ feature.key }}</div>
+                        <div style="color: #4a5568; font-size: 12px;">{{ feature.summary }}</div>
+                    </td>
+                    {% for area in all_areas %}
+                    <td style="padding: 10px; border: 1px solid #e2e8f0;"></td>
+                    {% endfor %}
+                </tr>
+                
+                {% for sub_feature in feature.sub_features %}
+                <tr style="background: white;">
+                    <td style="padding: 10px; border: 1px solid #e2e8f0; vertical-align: top;">
+                        <div style="padding-left: 15px;">
+                            <div style="color: #718096; font-size: 10px; font-weight: 600; text-transform: uppercase; margin-bottom: 3px;">↳ SUB-FEATURE</div>
+                            <div style="font-weight: 700; color: #2d3748; margin-bottom: 3px;">{{ sub_feature.key }}</div>
+                            <div style="color: #4a5568; font-size: 12px;">{{ sub_feature.summary }}</div>
+                        </div>
+                    </td>
+                    {% for area in all_areas %}
+                    <td style="padding: 10px; border: 1px solid #e2e8f0; vertical-align: top;">
+                        {% set epics = sub_feature.epics_by_area.get(area, []) %}
+                        {% if epics %}
+                            {% for epic in epics %}
+                            {% set is_completed = epic.status.lower() in completed_statuses %}
+                            {% if is_completed %}
+                            <div style="background: #f0fdf4; border-left: 4px solid #38d46e; padding: 8px 10px; margin-bottom: 8px; border-radius: 4px; font-size: 12px;">
+                            {% elif epic.risk_probability == 1 %}
+                            <div style="background: #f0fff4; border-left: 4px solid #48bb78; padding: 8px 10px; margin-bottom: 8px; border-radius: 4px; font-size: 12px;">
+                            {% elif epic.risk_probability == 2 %}
+                            <div style="background: #fffff0; border-left: 4px solid #ecc94b; padding: 8px 10px; margin-bottom: 8px; border-radius: 4px; font-size: 12px;">
+                            {% elif epic.risk_probability == 3 %}
+                            <div style="background: #fffaf0; border-left: 4px solid #ed8936; padding: 8px 10px; margin-bottom: 8px; border-radius: 4px; font-size: 12px;">
+                            {% elif epic.risk_probability == 4 %}
+                            <div style="background: #fff5f0; border-left: 4px solid #dd6b20; padding: 8px 10px; margin-bottom: 8px; border-radius: 4px; font-size: 12px;">
+                            {% elif epic.risk_probability == 5 %}
+                            <div style="background: #fff5f5; border-left: 4px solid #e53e3e; padding: 8px 10px; margin-bottom: 8px; border-radius: 4px; font-size: 12px;">
+                            {% else %}
+                            <div style="background: white; border-left: 4px solid #cbd5e0; padding: 8px 10px; margin-bottom: 8px; border-radius: 4px; font-size: 12px;">
+                            {% endif %}
+                                <div style="font-weight: 700; color: #2d3748; margin-bottom: 3px;">{% if is_completed %}✓{% else %}○{% endif %} {{ epic.key }}</div>
+                                <div style="color: #4a5568; margin-bottom: 3px; line-height: 1.4;">{{ epic.summary }}</div>
+                                <div style="color: #718096; font-size: 11px; font-style: italic;">{{ epic.status }}{% if epic.assignee %} | {{ epic.assignee }}{% endif %}</div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                        <div style="color: #a0aec0; font-style: italic; text-align: center; font-size: 12px;">—</div>
+                        {% endif %}
+                    </td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+    {% endfor %}
+    
+    <div style="margin-top: 30px; padding-top: 15px; border-top: 2px solid #e2e8f0; color: #718096; font-size: 13px; text-align: center;">
+        <p style="margin: 0;">© {{ year }} Pietro Maffi - Initiative Hierarchy Report</p>
+        <p style="margin: 5px 0 0 0; font-size: 11px;">Hierarchy Structure: Business Initiative → Feature → Sub-Feature → Epic</p>
+    </div>
+    
+</div>

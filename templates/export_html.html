@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Initiative Hierarchy Report - {{ fix_version }}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f7fafc;
+            padding: 20px;
+            color: #2d3748;
+            line-height: 1.6;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+        
+        .header .subtitle {
+            font-size: 16px;
+            opacity: 0.95;
+        }
+        
+        .metadata {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        
+        .metadata table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .metadata td {
+            padding: 8px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .metadata td:first-child {
+            font-weight: 600;
+            color: #4a5568;
+            width: 30%;
+        }
+        
+        .legend {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        
+        .legend h3 {
+            margin-bottom: 15px;
+            color: #2d3748;
+        }
+        
+        .legend-items {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+        }
+        
+        .legend-color {
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            border: 1px solid #cbd5e0;
+        }
+        
+        .risk-none { background: #e2e8f0; }
+        .risk-1 { background: #48bb78; }
+        .risk-2 { background: #ecc94b; }
+        .risk-3 { background: #ed8936; }
+        .risk-4 { background: #dd6b20; }
+        .risk-5 { background: #e53e3e; }
+        .completed { background: #38d46e; }
+        
+        .initiative-section {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            page-break-inside: avoid;
+        }
+        
+        .initiative-title {
+            font-size: 22px;
+            font-weight: 700;
+            color: #2d3748;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 3px solid #667eea;
+        }
+        
+        .hierarchy-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            font-size: 13px;
+        }
+        
+        .hierarchy-table thead {
+            background: #667eea;
+            color: white;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        
+        .hierarchy-table th {
+            padding: 12px 10px;
+            text-align: left;
+            font-weight: 600;
+            border: 1px solid #5568d3;
+        }
+        
+        .hierarchy-table td {
+            padding: 10px;
+            border: 1px solid #e2e8f0;
+            vertical-align: top;
+        }
+        
+        .hierarchy-table tbody tr:hover {
+            background: #f7fafc;
+        }
+        
+        .feature-row {
+            background: #edf2f7;
+            font-weight: 600;
+        }
+        
+        .feature-row td {
+            border-bottom: 2px solid #667eea;
+        }
+        
+        .sub-feature-row {
+            background: white;
+        }
+        
+        .feature-label {
+            color: #667eea;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            display: block;
+            margin-bottom: 4px;
+        }
+        
+        .feature-key {
+            font-weight: 700;
+            color: #2d3748;
+            display: block;
+            margin-bottom: 3px;
+        }
+        
+        .feature-summary {
+            color: #4a5568;
+            font-size: 12px;
+        }
+        
+        .sub-feature-content {
+            padding-left: 15px;
+        }
+        
+        .sub-feature-label {
+            color: #718096;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            display: block;
+            margin-bottom: 3px;
+        }
+        
+        .epic-card {
+            background: white;
+            border-left: 4px solid #cbd5e0;
+            padding: 8px 10px;
+            margin-bottom: 8px;
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            font-size: 12px;
+        }
+        
+        .epic-card.completed {
+            border-left-color: #38d46e;
+            background: #f0fdf4;
+        }
+        
+        .epic-card.risk-1 { border-left-color: #48bb78; background: #f0fff4; }
+        .epic-card.risk-2 { border-left-color: #ecc94b; background: #fffff0; }
+        .epic-card.risk-3 { border-left-color: #ed8936; background: #fffaf0; }
+        .epic-card.risk-4 { border-left-color: #dd6b20; background: #fff5f0; }
+        .epic-card.risk-5 { border-left-color: #e53e3e; background: #fff5f5; }
+        
+        .epic-key {
+            font-weight: 700;
+            color: #2d3748;
+            display: block;
+            margin-bottom: 3px;
+        }
+        
+        .epic-summary {
+            color: #4a5568;
+            margin-bottom: 3px;
+            line-height: 1.4;
+        }
+        
+        .epic-status {
+            color: #718096;
+            font-size: 11px;
+            font-style: italic;
+        }
+        
+        .empty-cell {
+            color: #a0aec0;
+            font-style: italic;
+            text-align: center;
+        }
+        
+        .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 2px solid #e2e8f0;
+            color: #718096;
+            font-size: 14px;
+            text-align: center;
+        }
+        
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+            
+            .initiative-section {
+                page-break-inside: avoid;
+                box-shadow: none;
+                border: 1px solid #e2e8f0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📋 Initiative Hierarchy Report</h1>
+        <div class="subtitle">Fix Version: {{ fix_version }} | Generated: {{ generated_date }}</div>
+        {% if query %}
+        <div class="subtitle" style="margin-top: 8px; font-size: 14px;">🔍 Query: {{ query }}</div>
+        {% endif %}
+    </div>
+    
+    <div class="metadata">
+        <table>
+            <tr>
+                <td>Program Increment / Fix Version</td>
+                <td><strong>{{ fix_version }}</strong></td>
+            </tr>
+            <tr>
+                <td>Total Initiatives</td>
+                <td><strong>{{ initiatives|length }}</strong></td>
+            </tr>
+            <tr>
+                <td>Initiatives with Features</td>
+                <td><strong>{{ initiatives_with_features }}</strong></td>
+            </tr>
+            <tr>
+                <td>Total Areas/Projects</td>
+                <td><strong>{{ all_areas|length }}</strong></td>
+            </tr>
+            <tr>
+                <td>Generated Date</td>
+                <td><strong>{{ generated_date }}</strong></td>
+            </tr>
+        </table>
+    </div>
+    
+    <div class="legend">
+        <h3>Risk Probability Legend</h3>
+        <div class="legend-items">
+            <div class="legend-item">
+                <div class="legend-color risk-none"></div>
+                <span>None/Unknown</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color risk-1"></div>
+                <span>1 - Low Risk</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color risk-2"></div>
+                <span>2 - Low-Medium</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color risk-3"></div>
+                <span>3 - Medium</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color risk-4"></div>
+                <span>4 - Medium-High</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color risk-5"></div>
+                <span>5 - High Risk</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color completed"></div>
+                <span>✓ Completed</span>
+            </div>
+        </div>
+    </div>
+    
+    {% for initiative in initiatives %}
+    {% if initiative.features and initiative.features|length > 0 %}
+    <div class="initiative-section">
+        <div class="initiative-title">
+            🎯 {{ initiative.key }}: {{ initiative.summary }}
+        </div>
+        
+        <table class="hierarchy-table">
+            <thead>
+                <tr>
+                    <th style="width: 20%;">Feature / Sub-Feature</th>
+                    {% for area in all_areas %}
+                    <th>{{ area }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for feature in initiative.features %}
+                <tr class="feature-row">
+                    <td>
+                        <span class="feature-label">🔹 FEATURE</span>
+                        <span class="feature-key">{{ feature.key }}</span>
+                        <span class="feature-summary">{{ feature.summary }}</span>
+                    </td>
+                    {% for area in all_areas %}
+                    <td></td>
+                    {% endfor %}
+                </tr>
+                
+                {% for sub_feature in feature.sub_features %}
+                <tr class="sub-feature-row">
+                    <td>
+                        <div class="sub-feature-content">
+                            <span class="sub-feature-label">↳ SUB-FEATURE</span>
+                            <span class="feature-key">{{ sub_feature.key }}</span>
+                            <span class="feature-summary">{{ sub_feature.summary }}</span>
+                        </div>
+                    </td>
+                    {% for area in all_areas %}
+                    <td>
+                        {% set epics = sub_feature.epics_by_area.get(area, []) %}
+                        {% if epics %}
+                            {% for epic in epics %}
+                            {% set is_completed = epic.status.lower() in completed_statuses %}
+                            {% if is_completed %}
+                            <div class="epic-card completed">
+                            {% elif epic.risk_probability %}
+                            <div class="epic-card risk-{{ epic.risk_probability }}">
+                            {% else %}
+                            <div class="epic-card">
+                            {% endif %}
+                                <span class="epic-key">{% if is_completed %}✓{% else %}○{% endif %} {{ epic.key }}</span>
+                                <div class="epic-summary">{{ epic.summary }}</div>
+                                <span class="epic-status">{{ epic.status }}{% if epic.assignee %} | {{ epic.assignee }}{% endif %}</span>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                        <div class="empty-cell">—</div>
+                        {% endif %}
+                    </td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+    {% endfor %}
+    
+    <div class="footer">
+        <p>© {{ year }} Pietro Maffi - Initiative Hierarchy Report</p>
+        <p style="margin-top: 5px; font-size: 12px;">Hierarchy Structure: Business Initiative → Feature → Sub-Feature → Epic</p>
+    </div>
+</body>
+</html>

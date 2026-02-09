@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Initiative Hierarchy - {{ fix_version }}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f7fafc;
+            padding: 20px;
+            color: #2d3748;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+        }
+        
+        .header h1 {
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+        
+        .header .subtitle {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+        
+        .cache-badge {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            margin-top: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        .cache-badge::before {
+            content: '🔄 ';
+        }
+        
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.2s;
+        }
+        
+        .back-link:hover {
+            color: #764ba2;
+        }
+        
+        .export-button {
+            display: inline-block;
+            float: right;
+            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s;
+            box-shadow: 0 4px 6px rgba(72, 187, 120, 0.3);
+            margin-bottom: 20px;
+            margin-left: 10px;
+        }
+        
+        .export-button:hover {
+            background: linear-gradient(135deg, #38a169 0%, #2f855a 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(72, 187, 120, 0.4);
+        }
+        
+        .export-button::before {
+            content: '📄 ';
+            margin-right: 8px;
+        }
+        
+        .export-button-html {
+            background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
+            box-shadow: 0 4px 6px rgba(66, 153, 225, 0.3);
+        }
+        
+        .export-button-html:hover {
+            background: linear-gradient(135deg, #3182ce 0%, #2c5282 100%);
+            box-shadow: 0 6px 12px rgba(66, 153, 225, 0.4);
+        }
+        
+        .export-button-html::before {
+            content: '📋 ';
+        }
+        
+        .export-button-wide {
+            background: linear-gradient(135deg, #9f7aea 0%, #805ad5 100%);
+            box-shadow: 0 4px 6px rgba(159, 122, 234, 0.3);
+        }
+        
+        .export-button-wide:hover {
+            background: linear-gradient(135deg, #805ad5 0%, #6b46c1 100%);
+            box-shadow: 0 6px 12px rgba(159, 122, 234, 0.4);
+        }
+        
+        .export-button-wide::before {
+            content: '📐 ';
+        }
+        
+        /* Initiative Level */
+        .initiative {
+            background: #a4eed1;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        
+        .initiative-header {
+            background: #667eea;
+            color: white;
+            padding: 20px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background 0.3s;
+        }
+        
+        .initiative-header:hover {
+            background: #5568d3;
+        }
+        
+        .initiative-title {
+            flex: 1;
+        }
+        
+        .initiative-key {
+            font-weight: 700;
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+        
+        .initiative-summary {
+            font-size: 18px;
+            font-weight: 600;
+        }
+        
+        .initiative-assignee {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            margin-left: 20px;
+        }
+        
+        .expand-icon {
+            font-size: 24px;
+            margin-left: 20px;
+            transition: transform 0.3s;
+        }
+        
+        .initiative.expanded .expand-icon {
+            transform: rotate(180deg);
+        }
+        
+        .initiative-content {
+            display: none;
+            padding: 0;
+        }
+        
+        .initiative.expanded .initiative-content {
+            display: block;
+        }
+        
+        /* Feature/Sub-Feature Level */
+        .feature-section {
+            border-top: 2px solid #e2e8f0;
+        }
+        
+        .feature-header {
+            background: #edf2f7;
+            padding: 16px 20px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-left: 4px solid #4299e1;
+            transition: background 0.2s;
+        }
+        
+        .feature-header:hover {
+            background: #e2e8f0;
+        }
+        
+        .feature-info {
+            flex: 1;
+        }
+        
+        .feature-key {
+            font-weight: 600;
+            color: #4299e1;
+            font-size: 13px;
+        }
+        
+        .feature-summary {
+            font-size: 15px;
+            font-weight: 500;
+            margin-top: 4px;
+        }
+        
+        .sub-feature-container {
+            display: none;
+            padding: 20px;
+            background: #f7fafc;
+        }
+        
+        .feature-section.expanded .sub-feature-container {
+            display: block;
+        }
+        
+        .sub-feature {
+            background: white;
+            border-left: 4px solid #48bb78;
+            padding: 16px;
+            margin-bottom: 16px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+        
+        .sub-feature-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        
+        .sub-feature-key {
+            font-weight: 600;
+            color: #48bb78;
+            font-size: 13px;
+        }
+        
+        .sub-feature-summary {
+            font-size: 14px;
+            font-weight: 500;
+            margin-top: 4px;
+            color: #2d3748;
+        }
+        
+        /* Epic Table */
+        .epic-table-container {
+            overflow-x: auto;
+            margin-top: 16px;
+        }
+        
+        .epic-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        
+        .epic-table th {
+            background: #2d3748;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            border-right: 2px solid #4a5568;
+        }
+        
+        .epic-table th:last-child {
+            border-right: none;
+        }
+        
+        .epic-table td {
+            padding: 12px;
+            border-bottom: 1px solid #e2e8f0;
+            border-right: 2px solid #e2e8f0;
+            vertical-align: top;
+        }
+        
+        .epic-table td:last-child {
+            border-right: none;
+        }
+        
+        .epic-table tr:hover {
+            background: #f7fafc;
+        }
+        
+        .area-column {
+            min-width: 200px;
+        }
+        
+        .epic-item {
+            padding: 8px 12px;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            border-left: 4px solid;
+        }
+        
+        .epic-key {
+            font-weight: 600;
+            font-size: 12px;
+            margin-bottom: 4px;
+        }
+        
+        .epic-summary {
+            font-size: 12px;
+            margin-bottom: 6px;
+            color: #4a5568;
+        }
+        
+        .epic-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 11px;
+        }
+        
+        .epic-assignee {
+            color: #718096;
+        }
+        
+        .epic-status {
+            background: #edf2f7;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+        
+        /* Risk Probability Colors - Numeric Scale 1-5 */
+        .risk-none {
+            background: #f0f0f0;
+            border-left-color: #a0aec0;
+        }
+        
+        /* Risk Level 1 - Low Risk (Green) */
+        .risk-1 {
+            background: #c6f6d5;
+            border-left-color: #38a169;
+        }
+        
+        /* Risk Level 2 - Low-Medium (Yellow) */
+        .risk-2 {
+            background: #fefcbf;
+            border-left-color: #d69e2e;
+        }
+        
+        /* Risk Level 3 - Medium Risk (Orange) */
+        .risk-3 {
+            background: #feebc8;
+            border-left-color: #ed8936;
+        }
+        
+        /* Risk Level 4 - Medium-High (Dark Orange) */
+        .risk-4 {
+            background: #fbd38d;
+            border-left-color: #c05621;
+        }
+        
+        /* Risk Level 5 - High Risk (Red) */
+        .risk-5 {
+            background: #fed7d7;
+            border-left-color: #e53e3e;
+        }
+        
+        /* Completed Status - Overrides risk colors */
+        .epic-completed {
+            background: #d4edda !important;
+            border-left-color: #28a745 !important;
+        }
+        
+        /* Legend */
+        .legend {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .legend-title {
+            font-weight: 600;
+            margin-bottom: 12px;
+            font-size: 14px;
+        }
+        
+        .legend-items {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+        }
+        
+        .legend-color {
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            border: 2px solid;
+        }
+        
+        .no-data {
+            text-align: center;
+            padding: 40px;
+            color: #718096;
+            font-size: 14px;
+        }
+        
+        .empty-area {
+            color: #cbd5e0;
+            font-size: 12px;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <a href="/" class="back-link">← Back to Configuration</a>
+    <a href="/export_pdf_wide" class="export-button export-button-wide" target="_blank">Wide PDF (All Areas)</a>
+    <a href="/export_html" class="export-button export-button-html" target="_blank">Export to HTML</a>
+    <a href="/export_pdf" class="export-button" target="_blank">Export to PDF</a>
+    <div style="clear: both;"></div>
+    
+    <div class="header">
+        <h1>🎯 Initiative Hierarchy Viewer</h1>
+        <div class="subtitle">Fix Version: {{ fix_version }} | {{ initiatives|length }} Initiatives Found</div>
+        {% if query %}
+        <div class="subtitle" style="font-size: 12px; opacity: 0.8; margin-top: 5px;">
+            🔍 Query: {{ query }}
+        </div>
+        {% endif %}
+        {% if cached_mode %}
+        <div class="cache-badge">
+            Cached Data (loaded {{ cache_age }})
+        </div>
+        {% endif %}
+        {% if is_limited %}
+        <div class="cache-badge" style="background: rgba(255, 193, 7, 0.3); border-color: rgba(255, 193, 7, 0.5);">
+            ⚠️ Limited to first {{ limit_count }} of {{ original_count }} initiatives
+        </div>
+        {% endif %}
+    </div>
+    
+    <div class="legend">
+        <div class="legend-title">Risk Probability Legend (1 = Low Risk → 5 = High Risk)</div>
+        <div class="legend-items">
+            <div class="legend-item">
+                <div class="legend-color risk-none"></div>
+                <span>None/Unknown</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color risk-1"></div>
+                <span>1 - Low Risk</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color risk-2"></div>
+                <span>2 - Low-Medium (Yellow)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color risk-3"></div>
+                <span>3 - Medium (Orange)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color risk-4"></div>
+                <span>4 - Medium-High (Dark Orange)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color risk-5"></div>
+                <span>5 - High Risk</span>
+            </div>
+        </div>
+    </div>
+    
+    {% if initiatives %}
+        {% for initiative in initiatives %}
+        <div class="initiative" data-initiative="{{ initiative.key }}">
+            <div class="initiative-header" onclick="toggleInitiative('{{ initiative.key }}')">
+                <div class="initiative-title">
+                    <div class="initiative-key">{{ initiative.key }}</div>
+                    <div class="initiative-summary">{{ initiative.summary }}</div>
+                </div>
+                <div class="initiative-assignee">👤 {{ initiative.assignee }}</div>
+                <div class="expand-icon">▼</div>
+            </div>
+            
+            <div class="initiative-content">
+                {% if initiative.features %}
+                    {% for feature in initiative.features %}
+                    <div class="feature-section" data-feature="{{ feature.key }}">
+                        <div class="feature-header" onclick="toggleFeature('{{ feature.key }}')">
+                            <div class="feature-info">
+                                <div class="feature-key">{{ feature.key }}</div>
+                                <div class="feature-summary">{{ feature.summary }}</div>
+                            </div>
+                            <div class="expand-icon">▼</div>
+                        </div>
+                        
+                        <div class="sub-feature-container">
+                            {% if feature.sub_features %}
+                                {% for sub_feature in feature.sub_features %}
+                                <div class="sub-feature">
+                                    <div class="sub-feature-header">
+                                        <div>
+                                            <div class="sub-feature-key">{{ sub_feature.key }}</div>
+                                            <div class="sub-feature-summary">{{ sub_feature.summary }}</div>
+                                        </div>
+                                    </div>
+                                    
+                                    {% if sub_feature.epics_by_area %}
+                                    <div class="epic-table-container">
+                                        <table class="epic-table">
+                                            <thead>
+                                                <tr>
+                                                    {% for area in all_areas %}
+                                                    <th class="area-column">{{ area }}</th>
+                                                    {% endfor %}
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr>
+                                                    {% for area in all_areas %}
+                                                    <td class="area-column">
+                                                        {% if sub_feature.epics_by_area.get(area) %}
+                                                            {% for epic in sub_feature.epics_by_area[area] %}
+                                                            {% set is_completed = epic.status.lower() in completed_statuses %}
+                                                            <div class="epic-item {{ 'epic-completed' if is_completed else ('risk-' + epic.risk_probability|string if epic.risk_probability is not none else 'risk-none') }}">
+                                                                <div class="epic-key">{% if is_completed %}✓ {% endif %}{{ epic.key }} {% if epic.risk_probability is not none and not is_completed %}<span style="font-size: 10px; color: #718096;">[Risk: {{ epic.risk_probability }}]</span>{% endif %}</div>
+                                                                <div class="epic-summary">{{ epic.summary[:80] }}{% if epic.summary|length > 80 %}...{% endif %}</div>
+                                                                <div class="epic-meta">
+                                                                    <span class="epic-assignee">👤 {{ epic.assignee }}</span>
+                                                                    <span class="epic-status">{{ epic.status }}</span>
+                                                                </div>
+                                                            </div>
+                                                            {% endfor %}
+                                                        {% else %}
+                                                            <div class="empty-area">No epics</div>
+                                                        {% endif %}
+                                                    </td>
+                                                    {% endfor %}
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    {% else %}
+                                    <div class="no-data">No epics found for this sub-feature</div>
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <div class="no-data">No sub-features found with fix version {{ fix_version }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="no-data">No features found with fix version {{ fix_version }}</div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="no-data">No initiatives found matching the query</div>
+    {% endif %}
+    
+    <script>
+        function toggleInitiative(key) {
+            const initiative = document.querySelector(`[data-initiative="${key}"]`);
+            initiative.classList.toggle('expanded');
+        }
+        
+        function toggleFeature(key) {
+            const feature = document.querySelector(`[data-feature="${key}"]`);
+            feature.classList.toggle('expanded');
+        }
+        
+        // Auto-expand first initiative on load
+        document.addEventListener('DOMContentLoaded', function() {
+            const firstInitiative = document.querySelector('.initiative');
+            if (firstInitiative) {
+                firstInitiative.classList.add('expanded');
+            }
+        });
+    </script>
+</body>
+</html>
