@@ -15,6 +15,9 @@ A Flask web application for visualizing Jira hierarchies with expandable initiat
   - ⚪ None/Unknown (Gray)
 - **Expandable Interface**: Click to expand/collapse initiatives and features
 - **Responsive Design**: Modern, clean UI with gradient styling
+- **Export in different format**: Export in PDF and wide PDF to improve the syntetic view, export to html to be reused in confluence view
+- **Caching option**: It allow to show data already loaded if you are interested on nive view of unchanged data
+- **Ability to collect data from most important Initiatives**: Enable to show only the most important configurable numbers of initiatives
 
 ## 🚀 Quick Start
 
@@ -39,7 +42,7 @@ Open your browser and navigate to `http://localhost:5001`
 Fill in the form:
 - **Jira Server URL**: Your Jira instance (e.g., `https://yourcompany.atlassian.net`)
 - **Access Token**: Your Jira API token (generate from Account Settings → Security → API Tokens)
-- **Initiative Query**: JQL to filter initiatives (e.g., `project = ISDOP`)
+- **Initiative Query**: JQL to filter initiatives (e.g., `project = MYPROJECT`)
 - **Fix Version**: The fix version to filter features/sub-features (e.g., `PI 2025.1`)
 
 ### 4. View Results
@@ -66,7 +69,7 @@ The application automatically color-codes epics based on the `Risk Probability` 
 ## 📊 Hierarchy Structure
 
 ```
-Business Initiative (ISDOP-XXX)
+Business Initiative (MYPROJECT-XXX)
 ├── Feature (filtered by fixVersion)
 │   ├── Sub-Feature (filtered by fixVersion)
 │   │   └── Epics by Area
@@ -149,11 +152,11 @@ PerseusLeadTime/
    ```
    Jira URL: https://mycompany.atlassian.net
    Access Token: [your-token]
-   Query: project = ISDOP AND labels = "Strategic"
+   Query: project = MYPROJECT AND labels = "Strategic"
    Fix Version: PI 2025.1
    ```
 
-2. **Result**: Expandable view showing all ISDOP Strategic initiatives with their features (PI 2025.1), sub-features, and epics organized by area with risk-based colors.
+2. **Result**: Expandable view showing all MYPROJECT Strategic initiatives with their features (PI 2025.1), sub-features, and epics organized by area with risk-based colors.
 
 ## 🤝 Integration with PI Analyzer
 
@@ -166,3 +169,4 @@ Created by Pietro Maffi - Initiative Viewer Tool
 ---
 
 **Need Help?** Check the console output for detailed logging of the data fetching process.
+
