@@ -436,14 +436,23 @@
 </head>
 <body>
     <a href="/" class="back-link">← Back to Configuration</a>
+    {% if backward_check %}
+    <a href="/export_jira_keys" class="export-button" style="background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%);" target="_blank">📋 Export Jira Keys</a>
+    {% endif %}
     <a href="/export_pdf_wide" class="export-button export-button-wide" target="_blank">Wide PDF (All Areas)</a>
+    <a href="/export_confluence_wiki" class="export-button" style="background: linear-gradient(135deg, #172b4d 0%, #0747a6 100%);" target="_blank">📝 Confluence Wiki</a>
     <a href="/export_html" class="export-button export-button-html" target="_blank">Export to HTML</a>
     <a href="/export_pdf" class="export-button" target="_blank">Export to PDF</a>
     <div style="clear: both;"></div>
     
     <div class="header">
+        {% if backward_check %}
+        <h1>🔍 Backward Check Analysis</h1>
+        <div class="subtitle">Target Fix Version: {{ fix_version }} | {{ initiatives|length }} Initiatives Analyzed</div>
+        {% else %}
         <h1>🎯 Initiative Hierarchy Viewer</h1>
         <div class="subtitle">Fix Version: {{ fix_version }} | {{ initiatives|length }} Initiatives Found</div>
+        {% endif %}
         {% if query %}
         <div class="subtitle" style="font-size: 12px; opacity: 0.8; margin-top: 5px;">
             🔍 Query: {{ query }}
@@ -460,6 +469,37 @@
         </div>
         {% endif %}
     </div>
+    
+    {% if backward_check and summary %}
+    <div style="background: #fff; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+        <h2 style="margin-bottom: 15px;">📊 Backward Check Summary</h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+            <div style="background: #f7fafc; padding: 15px; border-radius: 8px; border-left: 4px solid #667eea;">
+                <div style="font-size: 24px; font-weight: bold; color: #667eea;">{{ summary.total_features }}</div>
+                <div style="font-size: 14px; color: #718096;">Total Features</div>
+            </div>
+            <div style="background: #f7fafc; padding: 15px; border-radius: 8px; border-left: 4px solid #48bb78;">
+                <div style="font-size: 24px; font-weight: bold; color: #48bb78;">{{ summary.features_with_active_work }}</div>
+                <div style="font-size: 14px; color: #718096;">Features with Active Work</div>
+            </div>
+            <div style="background: #f7fafc; padding: 15px; border-radius: 8px; border-left: 4px solid #667eea;">
+                <div style="font-size: 24px; font-weight: bold; color: #667eea;">{{ summary.total_sub_features }}</div>
+                <div style="font-size: 14px; color: #718096;">Total Sub-Features</div>
+            </div>
+            <div style="background: #f7fafc; padding: 15px; border-radius: 8px; border-left: 4px solid #48bb78;">
+                <div style="font-size: 24px; font-weight: bold; color: #48bb78;">{{ summary.sub_features_with_active_work }}</div>
+                <div style="font-size: 14px; color: #718096;">Sub-Features with Active Work</div>
+            </div>
+            <div style="background: #f7fafc; padding: 15px; border-radius: 8px; border-left: 4px solid #f6ad55;">
+                <div style="font-size: 24px; font-weight: bold; color: #f6ad55;">{{ summary.epics_in_active_sprints }}</div>
+                <div style="font-size: 14px; color: #718096;">Epics in Active Sprints</div>
+            </div>
+        </div>
+        <div style="margin-top: 15px; padding: 12px; background: #e6fffa; border-radius: 6px; border-left: 4px solid #38b2ac;">
+            <strong>ℹ️ Note:</strong> Items with active sprint work are marked in GREEN (Risk = 1) and should be assigned Fix Version: <strong>{{ fix_version }}</strong>
+        </div>
+    </div>
+    {% endif %}
     
     <div class="legend">
         <div class="legend-title">Risk Probability Legend (1 = Low Risk → 5 = High Risk)</div>

@@ -306,6 +306,20 @@
             <div class="checkbox-group">
                 <input 
                     type="checkbox" 
+                    id="backward_check" 
+                    name="backward_check" 
+                    value="true"
+                    onchange="toggleBackwardCheck()"
+                >
+                <label for="backward_check">
+                    🔍 Backward Check Mode
+                    <span class="cache-hint">Find features/sub-features without fixVersion that have epics with children in active sprints. These will be marked with the target PI.</span>
+                </label>
+            </div>
+            
+            <div class="checkbox-group" id="use_cache_group">
+                <input 
+                    type="checkbox" 
                     id="use_cache" 
                     name="use_cache" 
                     value="true"
@@ -316,7 +330,7 @@
                 </label>
             </div>
             
-            <div class="checkbox-group">
+            <div class="checkbox-group" id="enable_limit_group">
                 <input 
                     type="checkbox" 
                     id="enable_limit" 
@@ -349,18 +363,41 @@
     </div>
     
     <script>
-        // Update button text based on cache checkbox
+        // Update button text based on cache and backward check checkboxes
         const cacheCheckbox = document.getElementById('use_cache');
+        const backwardCheckbox = document.getElementById('backward_check');
         const submitBtn = document.getElementById('submitBtn');
         const loadingText = document.querySelector('.loading-text');
+        const useCacheGroup = document.getElementById('use_cache_group');
+        const enableLimitGroup = document.getElementById('enable_limit_group');
         
-        cacheCheckbox.addEventListener('change', function() {
-            if (this.checked) {
+        function updateButtonText() {
+            if (backwardCheckbox.checked) {
+                submitBtn.innerHTML = '🔍 Run Backward Check';
+            } else if (cacheCheckbox.checked) {
                 submitBtn.innerHTML = '📂 Load from Cache';
             } else {
                 submitBtn.innerHTML = '🚀 Analyze Initiatives';
             }
-        });
+        }
+        
+        cacheCheckbox.addEventListener('change', updateButtonText);
+        backwardCheckbox.addEventListener('change', updateButtonText);
+        
+        // Toggle backward check mode
+        function toggleBackwardCheck() {
+            if (backwardCheckbox.checked) {
+                // Disable cache option in backward check mode (but keep limit enabled)
+                cacheCheckbox.disabled = true;
+                cacheCheckbox.checked = false;
+                useCacheGroup.style.opacity = '0.5';
+            } else {
+                // Re-enable cache option
+                cacheCheckbox.disabled = false;
+                useCacheGroup.style.opacity = '1';
+            }
+            updateButtonText();
+        }
         
         // Toggle limit count input visibility
         function toggleLimitInput() {
@@ -379,9 +416,15 @@
         
         // Show loading overlay when form is submitted
         document.querySelector('form').addEventListener('submit', function(e) {
-            if (cacheCheckbox.checked) {
+            if (backwardCheckbox.checked) {
+                loadingText.textContent = 'Running Backward Check Analysis...';
+                document.querySelector('.loading-subtext').textContent = 'Checking for active sprints...';
+            } else if (cacheCheckbox.checked) {
                 loadingText.textContent = 'Loading Cached Data...';
                 document.querySelector('.loading-subtext').textContent = 'This should be quick!';
+            } else {
+                loadingText.textContent = 'Analyzing Jira Hierarchy...';
+                document.querySelector('.loading-subtext').textContent = 'This may take a few moments';
             }
             document.getElementById('loadingOverlay').classList.add('active');
         });
