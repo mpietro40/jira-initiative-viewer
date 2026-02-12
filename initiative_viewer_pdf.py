@@ -533,9 +533,12 @@ class InitiativeViewerPDFGenerator:
                 for area in areas:
                     epics_in_area = epics_by_area.get(area, [])
                     if epics_in_area:
+                        # Limit epics per cell to prevent overflow
+                        MAX_EPICS_PER_CELL = 8 if self.page_format == 'wide' else 6
+                        
                         # Create post-it style cells for epics
                         epic_paragraphs = []
-                        for epic in epics_in_area:
+                        for idx, epic in enumerate(epics_in_area[:MAX_EPICS_PER_CELL]):
                             epic_text = self._create_epic_postit(epic)
                             # Extract background color from the text
                             if '---BGCOLOR:' in epic_text:
@@ -557,6 +560,12 @@ class InitiativeViewerPDFGenerator:
                                 epic_paragraphs.append(Paragraph(clean_text, epic_style))
                             else:
                                 epic_paragraphs.append(Paragraph(epic_text, self.styles['EpicPostIt']))
+                        
+                        # Add indicator if there are more epics
+                        if len(epics_in_area) > MAX_EPICS_PER_CELL:
+                            more_count = len(epics_in_area) - MAX_EPICS_PER_CELL
+                            more_text = f'<font size="6"><i>... and {more_count} more epic(s)</i></font>'
+                            epic_paragraphs.append(Paragraph(more_text, self.styles['InfoText']))
                         
                         # Combine paragraphs in a single cell (they will stack vertically)
                         row.append(epic_paragraphs)

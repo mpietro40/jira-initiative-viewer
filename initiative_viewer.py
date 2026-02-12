@@ -19,6 +19,7 @@ import io
 from datetime import datetime, timedelta
 from jira_client import JiraClient
 from initiative_viewer_pdf import InitiativeViewerPDFGenerator
+from backward_check_analyzer import BackwardCheckAnalyzer
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -74,6 +75,42 @@ def cleanup_old_files():
                     logger.info(f"🗑️ Cleaned up old file: {filename}")
     except Exception as e:
         logger.error(f"❌ Cleanup error: {e}")
+
+def filter_empty_hierarchy(initiatives: List[Dict]) -> List[Dict]:
+    """Filter out features and sub-features without epics for cleaner exports.
+    
+    Returns:
+        List[Dict]: Filtered initiatives containing only items with epics
+    """
+    filtered_initiatives = []
+    
+    for initiative in initiatives:
+        filtered_features = []
+        
+        for feature in initiative.get('features', []):
+            filtered_sub_features = []
+            
+            for sub_feature in feature.get('sub_features', []):
+                # Only keep sub-features that have at least one epic
+                epics_by_area = sub_feature.get('epics_by_area', {})
+                total_epics = sum(len(epics) for epics in epics_by_area.values())
+                
+                if total_epics > 0:
+                    filtered_sub_features.append(sub_feature)
+            
+            # Only keep features that have at least one sub-feature with epics
+            if filtered_sub_features:
+                feature_copy = feature.copy()
+                feature_copy['sub_features'] = filtered_sub_features
+                filtered_features.append(feature_copy)
+        
+        # Only keep initiatives that have at least one feature with sub-features
+        if filtered_features:
+            initiative_copy = initiative.copy()
+            initiative_copy['features'] = filtered_features
+            filtered_initiatives.append(initiative_copy)
+    
+    return filtered_initiatives
 
 def get_most_recent_cache() -> Optional[tuple]:
     """Get the most recent cached data file.
@@ -382,6 +419,102 @@ def index():
     return render_template('initiative_form.html')
 
 
+def analyze_backward_check():
+    """
+    NEW: Analyze features/sub-features without fixVersion that have epics in active sprints.
+    This is a completely separate path from the normal analysis.
+    """
+    jira_url = request.form.get('jira_url')
+    access_token = request.form.get('access_token')
+    query = request.form.get('query')
+    fix_version = request.form.get('fix_version')
+    
+    # Get initiative limit (same as normal mode)
+    enable_limit = request.form.get('enable_limit') == 'true'
+    if enable_limit:
+        try:
+            limit_count = int(request.form.get('limit_count', 25))
+            if limit_count <= 0:
+                limit_count = None
+        except (ValueError, TypeError):
+            limit_count = 25
+    else:
+        limit_count = None
+    
+    # Validate inputs
+    if not all([jira_url, access_token, query, fix_version]):
+        return render_template('initiative_form.html', error="All fields are required")
+    
+    # Validate URL format
+    if not jira_url.startswith('http'):
+        return render_template('initiative_form.html', error="Jira URL must start with http:// or https://")
+    
+    try:
+        # Initialize Jira client
+        logger.info(f"🔗 Initializing Jira client for Backward Check: {jira_url}")
+        jira_client = JiraClient(base_url=jira_url, access_token=access_token)
+        
+        # Run backward check analysis with limit
+        analyzer = BackwardCheckAnalyzer(jira_client)
+        results = analyzer.analyze(query, fix_version, limit=limit_count)
+        
+        initiatives = results['initiatives']
+        summary = results['summary']
+        features_to_mark = results['features_to_mark']
+        sub_features_to_mark = results['sub_features_to_mark']
+        is_limited = results.get('is_limited', False)
+        original_count = results.get('original_count', len(initiatives))
+        
+        # Get all unique areas for table headers
+        all_areas = set()
+        for initiative in initiatives:
+            for feature in initiative.get('features', []):
+                for sub_feature in feature.get('sub_features', []):
+                    all_areas.update(sub_feature.get('epics_by_area', {}).keys())
+        
+        # Store data in file-based storage
+        data_key = save_analysis_data({
+            'initiatives': initiatives,
+            'fix_version': fix_version,
+            'all_areas': sorted(all_areas),
+            'query': query,
+            'jira_url': jira_url,
+            'backward_check': True,
+            'features_to_mark': features_to_mark,
+            'sub_features_to_mark': sub_features_to_mark,
+            'summary': summary,
+            'is_limited': is_limited,
+            'limit_count': limit_count,
+            'original_count': original_count
+        })
+        session['data_key'] = data_key
+        
+        # Cleanup old files
+        cleanup_old_files()
+        
+        return render_template(
+            'initiative_hierarchy.html',
+            initiatives=initiatives,
+            fix_version=fix_version,
+            all_areas=sorted(all_areas),
+            query=query,
+            backward_check=True,
+            features_to_mark=features_to_mark,
+            sub_features_to_mark=sub_features_to_mark,
+            summary=summary,
+            is_limited=is_limited,
+            limit_count=limit_count if is_limited else None,
+            original_count=original_count if is_limited else None,
+            completed_statuses=COMPLETED_STATUSES
+        )
+    
+    except Exception as e:
+        logger.error(f"Backward Check failed: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return render_template('initiative_form.html', error=f"Backward Check failed: {str(e)}")
+
+
 @app.route('/analyze', methods=['POST'])
 def analyze():
     """Process form and display hierarchy."""
@@ -390,6 +523,11 @@ def analyze():
     query = request.form.get('query')
     fix_version = request.form.get('fix_version')
     use_cache_form = request.form.get('use_cache') == 'true'  # Checkbox from form
+    backward_check = request.form.get('backward_check') == 'true'  # NEW: Backward check mode
+    
+    # If backward check is enabled, route to the new handler
+    if backward_check:
+        return analyze_backward_check()
     
     # Get initiative limit - None means no limit, otherwise use the specified number
     enable_limit = request.form.get('enable_limit') == 'true'
@@ -548,11 +686,14 @@ def export_pdf():
             logger.error("❌ Invalid data structure")
             return "Invalid data. Please run an analysis first.", 400
         
-        logger.info(f"✅ Exporting PDF for {len(initiatives)} initiatives")
+        # Filter out features and sub-features without epics for cleaner export
+        filtered_initiatives = filter_empty_hierarchy(initiatives)
+        logger.info(f"✅ Exporting PDF: {len(initiatives)} initiatives → {len(filtered_initiatives)} with epics")
         
         # Generate PDF
         pdf_generator = InitiativeViewerPDFGenerator(
-            initiatives, fix_version, all_areas, query, 
+            filtered_initiatives, fix_version, all_areas, query,
+            filtered_initiatives, fix_version, all_areas, query, 
             jira_url=jira_url, is_limited=is_limited, 
             limit_count=limit_count, original_count=original_count,
             completed_statuses=COMPLETED_STATUSES
@@ -605,6 +746,9 @@ def export_pdf_wide():
             logger.error("❌ Invalid data structure")
             return "Invalid data. Please run an analysis first.", 400
         
+        # Filter out features and sub-features without epics for cleaner export
+        filtered_initiatives = filter_empty_hierarchy(initiatives)
+        
         # Determine format based on number of areas
         num_areas = len(all_areas)
         if num_areas <= 8:
@@ -614,11 +758,11 @@ def export_pdf_wide():
             page_format = 'wide'
             format_name = 'Wide'
         
-        logger.info(f"✅ Exporting {format_name} PDF for {len(initiatives)} initiatives with {num_areas} areas")
+        logger.info(f"✅ Exporting {format_name} PDF: {len(initiatives)} initiatives → {len(filtered_initiatives)} with epics ({num_areas} areas)")
         
         # Generate wide PDF
         pdf_generator = InitiativeViewerPDFGenerator(
-            initiatives, fix_version, all_areas, query, 
+            filtered_initiatives, fix_version, all_areas, query, 
             page_format=page_format, jira_url=jira_url,
             is_limited=is_limited, limit_count=limit_count, 
             original_count=original_count,
@@ -670,15 +814,18 @@ def export_html():
             logger.error("❌ No initiatives found")
             return "No data available. Please run an analysis first.", 400
         
-        # Count initiatives with features
-        initiatives_with_features = sum(1 for init in initiatives if init.get('features'))
+        # Filter out features and sub-features without epics for cleaner export
+        filtered_initiatives = filter_empty_hierarchy(initiatives)
         
-        logger.info(f"✅ Exporting HTML for {len(initiatives)} initiatives")
+        # Count initiatives with features
+        initiatives_with_features = sum(1 for init in filtered_initiatives if init.get('features'))
+        
+        logger.info(f"✅ Exporting HTML: {len(initiatives)} initiatives → {len(filtered_initiatives)} with epics")
         
         # Generate Confluence-compatible HTML (body content only, no html/head/body tags)
         html_content = render_template(
             'export_confluence.html',
-            initiatives=initiatives,
+            initiatives=filtered_initiatives,
             fix_version=fix_version,
             all_areas=all_areas,
             query=query,
@@ -706,6 +853,304 @@ def export_html():
     except Exception as e:
         logger.error(f"HTML export failed: {str(e)}")
         return f"HTML export failed: {str(e)}", 500
+
+
+@app.route('/export_confluence_wiki', methods=['GET'])
+def export_confluence_wiki():
+    """Export the current analysis results as Confluence Wiki Markup."""
+    try:
+        # Retrieve data from file storage using session key
+        data_key = session.get('data_key')
+        if not data_key:
+            logger.error("❌ No data_key in session")
+            return "No data available for export. Please run an analysis first.", 400
+        
+        data = load_analysis_data(data_key)
+        if not data:
+            logger.error(f"❌ Could not load data for key: {data_key}")
+            return "Data expired or not found. Please run the analysis again.", 400
+        
+        initiatives = data.get('initiatives', [])
+        fix_version = data.get('fix_version', 'Unknown')
+        all_areas = data.get('all_areas', [])
+        query = data.get('query', '')
+        jira_url = data.get('jira_url', 'https://jira')
+        is_limited = data.get('is_limited', False)
+        limit_count = data.get('limit_count')
+        original_count = data.get('original_count')
+        
+        if not initiatives:
+            logger.error("❌ No initiatives found")
+            return "No data available. Please run an analysis first.", 400
+        
+        # Filter out features and sub-features without epics for cleaner export
+        filtered_initiatives = filter_empty_hierarchy(initiatives)
+        
+        logger.info(f"✅ Exporting Confluence Wiki: {len(initiatives)} initiatives → {len(filtered_initiatives)} with epics")
+        
+        # Generate Confluence Wiki Markup
+        wiki_lines = []
+        wiki_lines.append(f"h1. Initiative Report - {fix_version}")
+        wiki_lines.append("")
+        wiki_lines.append(f"*Generated:* {datetime.now().strftime('%B %d, %Y at %H:%M')}")
+        wiki_lines.append(f"*Query:* {{{{monospace}}}}{query}{{{{monospace}}}}")
+        
+        if is_limited:
+            wiki_lines.append(f"*Note:* Showing {limit_count} of {original_count} initiatives (limited)")
+        
+        wiki_lines.append("")
+        wiki_lines.append("----")
+        wiki_lines.append("")
+        
+        # Create one table per initiative
+        for initiative in filtered_initiatives:
+            init_key = initiative.get('key', 'Unknown')
+            init_summary = initiative.get('summary', 'No summary')
+            
+            # Initiative header
+            wiki_lines.append(f"h2. [{init_key}|{jira_url}/browse/{init_key}] {init_summary}")
+            wiki_lines.append("")
+            
+            # Build table header (without Initiative column)
+            header_row = "|| Feature || Sub-Feature ||"
+            for area in sorted(all_areas):
+                header_row += f" {area} ||"
+            wiki_lines.append(header_row)
+            
+            # Build table rows for this initiative - ONE ROW PER EPIC
+            for feature in initiative.get('features', []):
+                feature_key = feature.get('key', 'Unknown')
+                feature_summary = feature.get('summary', 'No summary')
+                
+                for sub_feature in feature.get('sub_features', []):
+                    sf_key = sub_feature.get('key', 'Unknown')
+                    sf_summary = sub_feature.get('summary', 'No summary')
+                    
+                    # Collect all epics across all areas to determine how many rows we need
+                    epics_by_area = sub_feature.get('epics_by_area', {})
+                    max_epics = max([len(epics) for epics in epics_by_area.values()] + [0])
+                    
+                    if max_epics == 0:
+                        # No epics - single row with empty cells
+                        row = f"| [{feature_key}|{jira_url}/browse/{feature_key}] {feature_summary} "
+                        row += f"| [{sf_key}|{jira_url}/browse/{sf_key}] {sf_summary} |"
+                        for area in sorted(all_areas):
+                            row += " |"
+                        wiki_lines.append(row)
+                    else:
+                        # Create one row per epic across all areas
+                        for epic_idx in range(max_epics):
+                            row = ""
+                            
+                            # Feature and Sub-Feature columns only on first row
+                            if epic_idx == 0:
+                                row += f"| [{feature_key}|{jira_url}/browse/{feature_key}] {feature_summary} "
+                                row += f"| [{sf_key}|{jira_url}/browse/{sf_key}] {sf_summary} |"
+                            else:
+                                # Empty feature and sub-feature cells for subsequent rows
+                                row += "| | |"
+                            
+                            # Add epic for each area (if exists at this index)
+                            for area in sorted(all_areas):
+                                epics = epics_by_area.get(area, [])
+                                
+                                if epic_idx < len(epics):
+                                    epic = epics[epic_idx]
+                                    epic_key = epic.get('key', 'Unknown')
+                                    epic_status = epic.get('status', 'Unknown')
+                                    risk = epic.get('risk_probability')
+                                    
+                                    # Check if completed
+                                    status_lower = epic_status.lower()
+                                    is_completed = any(completed in status_lower for completed in COMPLETED_STATUSES)
+                                    
+                                    # Use Confluence hosted images as risk indicators
+                                    base_url = "https://confluence.worldline-solutions.com/download/thumbnails/2627092118"
+                                    
+                                    # If completed/resolved, always show green regardless of risk field
+                                    if is_completed:
+                                        risk_icon = f"!{base_url}/Green.jpg!"  # Green for completed
+                                    elif risk == 1:
+                                        risk_icon = f"!{base_url}/Green.jpg!"  # Green
+                                    elif risk == 2:
+                                        risk_icon = f"!{base_url}/Yellow.jpg!"  # Yellow
+                                    elif risk == 3:
+                                        risk_icon = f"!{base_url}/Orange.jpg!"  # Orange
+                                    elif risk == 4:
+                                        risk_icon = f"!{base_url}/DarkOrange.png!"  # Dark Orange
+                                    elif risk == 5:
+                                        risk_icon = f"!{base_url}/Red.jpg!"  # Red
+                                    else:
+                                        risk_icon = f"!{base_url}/unknown.jpg!"  # Unknown/None
+                                    
+                                    # Create epic cell with risk icon and link
+                                    if is_completed:
+                                        row += f" {risk_icon} -[{epic_key}|{jira_url}/browse/{epic_key}]- |"
+                                    else:
+                                        row += f" {risk_icon} [{epic_key}|{jira_url}/browse/{epic_key}] |"
+                                else:
+                                    # No epic for this area at this index
+                                    row += " |"
+                            
+                            wiki_lines.append(row)
+            
+            # Add spacing between initiative tables
+            wiki_lines.append("")
+            wiki_lines.append("")
+        
+        wiki_lines.append("")
+        wiki_lines.append("----")
+        wiki_lines.append("")
+        wiki_lines.append("h3. Legend")
+        wiki_lines.append("")
+        wiki_lines.append("*Risk Level Colors:*")
+        wiki_lines.append("* {color:green}Green{color} - Low risk / Committed / Resolved")
+        wiki_lines.append("* {color:orange}Orange{color} - Medium risk")
+        wiki_lines.append("* {color:red}Red{color} - High risk / Can't deliver")
+        wiki_lines.append("")
+        wiki_lines.append("*Status:*")
+        wiki_lines.append("* -Strikethrough- - Completed/Done/Closed")
+        wiki_lines.append("")
+        wiki_lines.append(f"_Report generated by Initiative Viewer on {datetime.now().strftime('%B %d, %Y at %H:%M')}_")
+        
+        wiki_content = "\n".join(wiki_lines)
+        
+        # Generate filename with timestamp
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"Initiative_Report_Wiki_{fix_version}_{timestamp}.txt"
+        
+        # Send text file
+        return send_file(
+            io.BytesIO(wiki_content.encode('utf-8')),
+            mimetype='text/plain',
+            as_attachment=True,
+            download_name=filename
+        )
+        
+    except Exception as e:
+        logger.error(f"Confluence Wiki export failed: {str(e)}")
+        return f"Confluence Wiki export failed: {str(e)}", 500
+
+
+@app.route('/export_jira_keys', methods=['GET'])
+def export_jira_keys():
+    """
+    NEW: Export list of Jira keys (features and sub-features) that should be marked with the PI.
+    Only available after backward check analysis.
+    """
+    try:
+        # Retrieve data from file storage using session key
+        data_key = session.get('data_key')
+        if not data_key:
+            logger.error("❌ No data_key in session")
+            return "No data available for export. Please run a backward check analysis first.", 400
+        
+        data = load_analysis_data(data_key)
+        if not data:
+            logger.error(f"❌ Could not load data for key: {data_key}")
+            return "Data expired or not found. Please run the analysis again.", 400
+        
+        # Check if this was a backward check analysis
+        if not data.get('backward_check'):
+            return "This export is only available for Backward Check analysis.", 400
+        
+        features_to_mark = data.get('features_to_mark', [])
+        sub_features_to_mark = data.get('sub_features_to_mark', [])
+        fix_version = data.get('fix_version', 'Unknown')
+        summary = data.get('summary', {})
+        
+        # Generate text report
+        report_lines = []
+        report_lines.append("=" * 80)
+        report_lines.append("BACKWARD CHECK ANALYSIS - JIRA KEYS TO MARK")
+        report_lines.append("=" * 80)
+        report_lines.append(f"Target Fix Version: {fix_version}")
+        report_lines.append(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        report_lines.append("")
+        report_lines.append("SUMMARY")
+        report_lines.append("-" * 80)
+        report_lines.append(f"Total Features Analyzed: {summary.get('total_features', 0)}")
+        report_lines.append(f"Features with Active Work: {summary.get('features_with_active_work', 0)}")
+        report_lines.append(f"Total Sub-Features Analyzed: {summary.get('total_sub_features', 0)}")
+        report_lines.append(f"Sub-Features with Active Work: {summary.get('sub_features_with_active_work', 0)}")
+        report_lines.append(f"Epics in Active Sprints: {summary.get('epics_in_active_sprints', 0)}")
+        report_lines.append("")
+        
+        report_lines.append("=" * 80)
+        report_lines.append("FEATURES TO MARK WITH " + fix_version)
+        report_lines.append("=" * 80)
+        if features_to_mark:
+            for idx, feature in enumerate(features_to_mark, 1):
+                report_lines.append(f"{idx}. {feature['key']} - {feature['summary']}")
+        else:
+            report_lines.append("(No features need to be marked)")
+        report_lines.append("")
+        
+        report_lines.append("=" * 80)
+        report_lines.append("SUB-FEATURES TO MARK WITH " + fix_version)
+        report_lines.append("=" * 80)
+        if sub_features_to_mark:
+            for idx, sub_feature in enumerate(sub_features_to_mark, 1):
+                report_lines.append(f"{idx}. {sub_feature['key']} - {sub_feature['summary']}")
+        else:
+            report_lines.append("(No sub-features need to be marked)")
+        report_lines.append("")
+        
+        # Bulk update JQL query section
+        report_lines.append("=" * 80)
+        report_lines.append("BULK UPDATE JQL QUERIES")
+        report_lines.append("=" * 80)
+        report_lines.append("Use these JQL queries to bulk-update items in Jira:")
+        report_lines.append("")
+        
+        if features_to_mark:
+            feature_keys = ", ".join(f['key'] for f in features_to_mark)
+            report_lines.append("Features:")
+            report_lines.append(f"  issuekey in ({feature_keys})")
+            report_lines.append("")
+        
+        if sub_features_to_mark:
+            sub_feature_keys = ", ".join(sf['key'] for sf in sub_features_to_mark)
+            report_lines.append("Sub-Features:")
+            report_lines.append(f"  issuekey in ({sub_feature_keys})")
+            report_lines.append("")
+        
+        if features_to_mark or sub_features_to_mark:
+            all_keys = [f['key'] for f in features_to_mark] + [sf['key'] for sf in sub_features_to_mark]
+            all_keys_str = ", ".join(all_keys)
+            report_lines.append("All Items Combined:")
+            report_lines.append(f"  issuekey in ({all_keys_str})")
+            report_lines.append("")
+        
+        report_lines.append("=" * 80)
+        report_lines.append("INSTRUCTIONS")
+        report_lines.append("=" * 80)
+        report_lines.append("1. Review the list of features and sub-features above")
+        report_lines.append(f"2. Use the JQL queries to select these items in Jira")
+        report_lines.append(f"3. Bulk update the 'Fix Version' field to: {fix_version}")
+        report_lines.append("4. Save changes")
+        report_lines.append("")
+        report_lines.append("Note: These items have epics with children in active sprints,")
+        report_lines.append("indicating active development work that should be tracked in this PI.")
+        report_lines.append("=" * 80)
+        
+        report_content = "\n".join(report_lines)
+        
+        # Generate filename with timestamp
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"BackwardCheck_JiraKeys_{fix_version}_{timestamp}.txt"
+        
+        # Send text file
+        return send_file(
+            io.BytesIO(report_content.encode('utf-8')),
+            mimetype='text/plain',
+            as_attachment=True,
+            download_name=filename
+        )
+        
+    except Exception as e:
+        logger.error(f"Jira keys export failed: {str(e)}")
+        return f"Jira keys export failed: {str(e)}", 500
 
 
 if __name__ == '__main__':
