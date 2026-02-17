@@ -1,13 +1,17 @@
 =============================================================================
+
         INITIATIVE VIEWER - EXECUTABLE BUILD & DEPLOYMENT
                     Documentation Index
+
 =============================================================================
 
 This folder contains everything you need to build and distribute the
 Initiative Viewer as a standalone Windows executable.
 
 =============================================================================
+
 📖 DOCUMENTATION FILES (READ THESE)
+
 =============================================================================
 
 1. 📘 HOW_TO_BUILD_EXECUTABLE.txt
@@ -35,6 +39,13 @@ Initiative Viewer as a standalone Windows executable.
    
    👉 Give this file to users who will RUN the application
 
+📋 NEXT STEPS:
+   1. Your browser will open automatically in a moment
+   2. Fill in your Jira details in the web form
+   3. Click 'Analyze' to view the initiative hierarchy
+
+💡 TIP: You can find your Jira API token at:
+   https://id.atlassian.com/manage-profile/security/api-tokens
 
 3. 📕 DEPLOYMENT_GUIDE.md
    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
