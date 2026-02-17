@@ -692,15 +692,31 @@ def export_pdf():
         filtered_initiatives = filter_empty_hierarchy(initiatives)
         logger.info(f"✅ Exporting PDF: {len(initiatives)} initiatives → {len(filtered_initiatives)} with epics")
         
+        # Validate parameters before PDF generation
+        logger.debug(f"PDF Generation Parameters:")
+        logger.debug(f"  - Initiatives: {len(filtered_initiatives)}")
+        logger.debug(f"  - Fix Version: {fix_version}")
+        logger.debug(f"  - Areas: {len(all_areas)}")
+        logger.debug(f"  - Query: {query[:50]}..." if len(query) > 50 else f"  - Query: {query}")
+        logger.debug(f"  - Jira URL: {jira_url}")
+        logger.debug(f"  - Is Limited: {is_limited}")
+        
         # Generate PDF
-        pdf_generator = InitiativeViewerPDFGenerator(
-            filtered_initiatives, fix_version, all_areas, query,
-            filtered_initiatives, fix_version, all_areas, query, 
-            jira_url=jira_url, is_limited=is_limited, 
-            limit_count=limit_count, original_count=original_count,
-            completed_statuses=COMPLETED_STATUSES
-        )
+        try:
+            pdf_generator = InitiativeViewerPDFGenerator(
+                filtered_initiatives, fix_version, all_areas, query,
+                jira_url=jira_url, is_limited=is_limited, 
+                limit_count=limit_count, original_count=original_count,
+                completed_statuses=COMPLETED_STATUSES
+            )
+            logger.info("✅ PDF generator initialized successfully")
+        except TypeError as te:
+            logger.error(f"❌ PDF generator initialization failed - TypeError: {str(te)}")
+            logger.error("This usually means duplicate or mismatched arguments")
+            raise
+        
         pdf_buffer = pdf_generator.generate()
+        logger.info("✅ PDF generation completed")
         
         # Generate filename with timestamp
         from datetime import datetime
@@ -716,8 +732,12 @@ def export_pdf():
         )
         
     except Exception as e:
-        logger.error(f"PDF export failed: {str(e)}")
-        return f"PDF export failed: {str(e)}", 500
+        import traceback
+        error_details = traceback.format_exc()
+        logger.error(f"❌ PDF export failed: {str(e)}")
+        logger.error(f"Error details: {error_details}")
+        logger.error(f"Context - Fix version: {data.get('fix_version', 'N/A')}, Initiatives: {len(data.get('initiatives', []))}")
+        return f"PDF export failed: {str(e)}. Check server logs for details.", 500
 
 
 @app.route('/export_pdf_wide', methods=['GET'])
@@ -762,15 +782,31 @@ def export_pdf_wide():
         
         logger.info(f"✅ Exporting {format_name} PDF: {len(initiatives)} initiatives → {len(filtered_initiatives)} with epics ({num_areas} areas)")
         
+        # Validate parameters before PDF generation
+        logger.debug(f"Wide PDF Generation Parameters:")
+        logger.debug(f"  - Initiatives: {len(filtered_initiatives)}")
+        logger.debug(f"  - Fix Version: {fix_version}")
+        logger.debug(f"  - Areas: {len(all_areas)}")
+        logger.debug(f"  - Format: {page_format}")
+        logger.debug(f"  - Jira URL: {jira_url}")
+        
         # Generate wide PDF
-        pdf_generator = InitiativeViewerPDFGenerator(
-            filtered_initiatives, fix_version, all_areas, query, 
-            page_format=page_format, jira_url=jira_url,
-            is_limited=is_limited, limit_count=limit_count, 
-            original_count=original_count,
-            completed_statuses=COMPLETED_STATUSES
-        )
+        try:
+            pdf_generator = InitiativeViewerPDFGenerator(
+                filtered_initiatives, fix_version, all_areas, query, 
+                page_format=page_format, jira_url=jira_url,
+                is_limited=is_limited, limit_count=limit_count, 
+                original_count=original_count,
+                completed_statuses=COMPLETED_STATUSES
+            )
+            logger.info(f"✅ {format_name} PDF generator initialized successfully")
+        except TypeError as te:
+            logger.error(f"❌ {format_name} PDF generator initialization failed - TypeError: {str(te)}")
+            logger.error("This usually means duplicate or mismatched arguments")
+            raise
+        
         pdf_buffer = pdf_generator.generate()
+        logger.info(f"✅ {format_name} PDF generation completed")
         
         # Generate filename with timestamp
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -785,8 +821,12 @@ def export_pdf_wide():
         )
         
     except Exception as e:
-        logger.error(f"Wide PDF export failed: {str(e)}")
-        return f"Wide PDF export failed: {str(e)}", 500
+        import traceback
+        error_details = traceback.format_exc()
+        logger.error(f"❌ Wide PDF export failed: {str(e)}")
+        logger.error(f"Error details: {error_details}")
+        logger.error(f"Context - Fix version: {data.get('fix_version', 'N/A')}, Initiatives: {len(data.get('initiatives', []))}, Format: {page_format}")
+        return f"Wide PDF export failed: {str(e)}. Check server logs for details.", 500
 
 
 @app.route('/export_html', methods=['GET'])
