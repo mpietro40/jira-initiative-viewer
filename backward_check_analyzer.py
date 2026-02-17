@@ -95,9 +95,15 @@ class BackwardCheckAnalyzer:
         
         # Step 4: For each epic, trace to Sub-Feature and Feature
         logger.info("⏳ Step 4: Tracing epics back to Sub-Features and Features...")
+        logger.info(f"   Processing {len(epics_with_active_work)} epics with active work...")
+        
+        trace_success = 0
+        trace_failed = 0
+        
         for epic_key in epics_with_active_work:
             hierarchy = self._trace_epic_to_hierarchy(epic_key)
             if hierarchy:
+                trace_success += 1
                 sub_feature = hierarchy.get('sub_feature')
                 feature = hierarchy.get('feature')
                 
@@ -105,17 +111,23 @@ class BackwardCheckAnalyzer:
                     # Check if sub-feature has target fixVersion
                     if not self._has_fix_version(sub_feature['key'], target_fix_version):
                         sub_features_with_active_work[sub_feature['key']] = sub_feature
-                        logger.info(f"  ← Epic {epic_key} → Sub-Feature {sub_feature['key']} (MISSING fixVersion)")
+                        logger.info(f"  ✅ Epic {epic_key} → Sub-Feature {sub_feature['key']} → NEEDS {target_fix_version}")
                     else:
-                        logger.info(f"  ← Epic {epic_key} → Sub-Feature {sub_feature['key']} (already has {target_fix_version})")
+                        logger.info(f"  ℹ️  Epic {epic_key} → Sub-Feature {sub_feature['key']} → already has {target_fix_version}")
                 
                 if feature:
                     # Check if feature has target fixVersion
                     if not self._has_fix_version(feature['key'], target_fix_version):
                         features_with_active_work[feature['key']] = feature
-                        logger.info(f"  ← Sub-Feature → Feature {feature['key']} (MISSING fixVersion)")
+                        logger.info(f"  ✅ Feature {feature['key']} → NEEDS {target_fix_version}")
                     else:
-                        logger.info(f"  ← Sub-Feature → Feature {feature['key']} (already has {target_fix_version})")
+                        logger.info(f"  ℹ️  Feature {feature['key']} → already has {target_fix_version}")
+            else:
+                trace_failed += 1
+                logger.error(f"  ❌ Failed to trace Epic {epic_key} - could not find parent hierarchy")
+        
+        logger.info(f"✅ Trace Summary: {trace_success} successful, {trace_failed} failed")
+        logger.info(f"📊 Result: {len(sub_features_with_active_work)} sub-features and {len(features_with_active_work)} features need {target_fix_version}")
         
         # Step 5: Build the display hierarchy (for UI)
         logger.info("⏳ Step 5: Building display hierarchy...")
@@ -228,8 +240,9 @@ class BackwardCheckAnalyzer:
                         for epic in epics:
                             epic_key = epic['key']
                             
-                            # Check if epic has children in active sprints
-                            children_jql = f'parent = {epic_key} AND sprint IN openSprints()'
+                            # Check if epic has children OR subtasks in active sprints
+                            # Query: Stories/Tasks linked to epic + their subtasks
+                            children_jql = f'("Epic Link" = {epic_key} OR issue IN subtasksOf(\'"Epic Link" = {epic_key}\')) AND sprint IN openSprints()'
                             children = self.jira_client.fetch_issues(children_jql, max_results=100)
                             
                             if children:
@@ -266,56 +279,118 @@ class BackwardCheckAnalyzer:
         """
         try:
             # Get epic details to find its parent (Sub-Feature)
+            logger.info(f"🔍 Tracing Epic {epic_key} back to hierarchy...")
             epic_response = self.jira_client.session.get(
-                f"{self.jira_client.base_url}/rest/api/2/issue/{epic_key}"
+                f"{self.jira_client.base_url}/rest/api/2/issue/{epic_key}",
+                params={'fields': 'parent,issuetype,summary'}
             )
             
             if epic_response.status_code != 200:
-                logger.warning(f"Could not fetch epic {epic_key}")
+                logger.error(f"❌ Could not fetch epic {epic_key} (HTTP {epic_response.status_code})")
                 return None
             
             epic_data = epic_response.json()
             parent = epic_data['fields'].get('parent')
             
             if not parent:
-                logger.warning(f"Epic {epic_key} has NO parent (orphaned epic)")
-                return None
+                logger.warning(f"⚠️ Epic {epic_key} has NO parent field (orphaned epic)")
+                # Try to find parent via JQL as fallback
+                try:
+                    parent_jql = f'issue IN parentIssuesOf("{epic_key}")'
+                    parents = self.jira_client.fetch_issues(parent_jql, max_results=1)
+                    if parents:
+                        parent_key = parents[0]['key']
+                        parent_type = parents[0]['fields'].get('issuetype', {}).get('name', '')
+                        logger.info(f"   ✓ Found parent via JQL: {parent_key} ({parent_type})")
+                        
+                        if parent_type == 'Sub-Feature':
+                            sub_feature_data = self._fetch_issue_details(parent_key)
+                            # Now get the feature (parent of sub-feature)
+                            return self._trace_sub_feature_to_feature(parent_key, sub_feature_data)
+                        else:
+                            logger.warning(f"   Parent {parent_key} is {parent_type}, not Sub-Feature")
+                            return None
+                    else:
+                        logger.error(f"   No parent found via JQL either")
+                        return None
+                except Exception as e:
+                    logger.error(f"   Failed to find parent via JQL: {e}")
+                    return None
             
             sub_feature_key = parent.get('key')
             sub_feature_type = parent['fields'].get('issuetype', {}).get('name', '')
             
             if sub_feature_type != 'Sub-Feature':
-                logger.warning(f"Epic {epic_key} parent is not Sub-Feature, it's {sub_feature_type}")
+                logger.warning(f"⚠️ Epic {epic_key} parent is '{sub_feature_type}', not 'Sub-Feature'")
                 return None
             
-            logger.info(f"  ← Epic {epic_key} → Sub-Feature {sub_feature_key}")
+            logger.info(f"   ✓ Epic {epic_key} → Sub-Feature {sub_feature_key}")
             
             # Get Sub-Feature details
             sub_feature_data = self._fetch_issue_details(sub_feature_key)
             
+            # Now get the feature (parent of sub-feature)
+            return self._trace_sub_feature_to_feature(sub_feature_key, sub_feature_data)
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to trace epic {epic_key} to hierarchy: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return None
+    
+    def _trace_sub_feature_to_feature(self, sub_feature_key: str, sub_feature_data: Dict) -> Dict:
+        """
+        Trace a sub-feature to its parent feature.
+        
+        Args:
+            sub_feature_key: The sub-feature key
+            sub_feature_data: Already fetched sub-feature details
+            
+        Returns:
+            Dict with 'sub_feature' and 'feature' details
+        """
+        try:
             # Get Feature (parent of Sub-Feature)
             sub_feature_response = self.jira_client.session.get(
-                f"{self.jira_client.base_url}/rest/api/2/issue/{sub_feature_key}"
+                f"{self.jira_client.base_url}/rest/api/2/issue/{sub_feature_key}",
+                params={'fields': 'parent,issuetype'}
             )
             
             if sub_feature_response.status_code != 200:
+                logger.warning(f"⚠️ Could not fetch sub-feature {sub_feature_key}")
                 return {'sub_feature': sub_feature_data, 'feature': None}
             
             sub_feature_full = sub_feature_response.json()
             sf_parent = sub_feature_full['fields'].get('parent')
             
             if not sf_parent:
-                logger.warning(f"Sub-Feature {sub_feature_key} has NO parent")
+                logger.warning(f"⚠️ Sub-Feature {sub_feature_key} has NO parent")
+                # Try JQL fallback
+                try:
+                    parent_jql = f'issue IN parentIssuesOf("{sub_feature_key}")'
+                    parents = self.jira_client.fetch_issues(parent_jql, max_results=1)
+                    if parents:
+                        feature_key = parents[0]['key']
+                        feature_type = parents[0]['fields'].get('issuetype', {}).get('name', '')
+                        logger.info(f"   ✓ Found feature via JQL: {feature_key} ({feature_type})")
+                        
+                        if feature_type == 'Feature':
+                            feature_data = self._fetch_issue_details(feature_key)
+                            logger.info(f"   ✓ Sub-Feature {sub_feature_key} → Feature {feature_key}")
+                            return {'sub_feature': sub_feature_data, 'feature': feature_data}
+                except Exception as e:
+                    logger.error(f"   Failed to find feature via JQL: {e}")
+                
                 return {'sub_feature': sub_feature_data, 'feature': None}
             
             feature_key = sf_parent.get('key')
             feature_type = sf_parent['fields'].get('issuetype', {}).get('name', '')
             
             if feature_type != 'Feature':
-                logger.warning(f"Sub-Feature {sub_feature_key} parent is not Feature, it's {feature_type}")
+                logger.warning(f"⚠️ Sub-Feature {sub_feature_key} parent is '{feature_type}', not 'Feature'")
                 return {'sub_feature': sub_feature_data, 'feature': None}
             
-            logger.info(f"  ← Sub-Feature {sub_feature_key} → Feature {feature_key}")
+            logger.info(f"   ✓ Sub-Feature {sub_feature_key} → Feature {feature_key}")
             
             # Get Feature details
             feature_data = self._fetch_issue_details(feature_key)
@@ -326,8 +401,8 @@ class BackwardCheckAnalyzer:
             }
             
         except Exception as e:
-            logger.error(f"Failed to trace epic {epic_key} to hierarchy: {str(e)}")
-            return None
+            logger.error(f"❌ Failed to trace sub-feature {sub_feature_key} to feature: {str(e)}")
+            return {'sub_feature': sub_feature_data, 'feature': None}
     
     def _has_fix_version(self, issue_key: str, target_fix_version: str) -> bool:
         """
@@ -476,15 +551,17 @@ class BackwardCheckAnalyzer:
     
     def _has_children_in_active_sprint(self, epic_key: str) -> bool:
         """
-        Check if an epic has any children (stories/tasks) in an active sprint.
-        Uses JQL to find items in active sprints (simpler and more reliable).
+        Check if an epic has any children (stories/tasks via Epic Link) or their subtasks in an active sprint.
+        Uses the correct query: "Epic Link" = epic OR subtasks of items with that Epic Link.
         
         Returns:
-            bool: True if epic has children in active sprints
+            bool: True if epic has children or subtasks in active sprints
         """
-        # Use JQL to find children in active sprints
-        # sprint IN openSprints() finds items in any open/active sprint
-        jql = f'parent = {epic_key} AND sprint IN openSprints()'
+        # Query for:
+        # 1. Items with Epic Link = this epic
+        # 2. Subtasks of items with Epic Link = this epic
+        # Both filtered by openSprints()
+        jql = f'("Epic Link" = {epic_key} OR issue IN subtasksOf(\'"Epic Link" = {epic_key}\')) AND sprint IN openSprints()'
         
         try:
             logger.debug(f"  🔍 Checking active sprints for Epic {epic_key}")
@@ -493,13 +570,13 @@ class BackwardCheckAnalyzer:
             children_in_active_sprints = self.jira_client.fetch_issues(jql, max_results=1)
             
             if children_in_active_sprints:
-                logger.info(f"      ✅ Epic {epic_key} has {len(children_in_active_sprints)} children in ACTIVE sprints")
+                logger.info(f"      ✅ Epic {epic_key} has {len(children_in_active_sprints)} children/subtasks in ACTIVE sprints")
                 # Log first few children
                 for child in children_in_active_sprints[:3]:
                     logger.info(f"         → {child['key']}: {child['fields'].get('summary', 'N/A')}")
                 return True
             else:
-                logger.debug(f"      ✗ Epic {epic_key} has NO children in active sprints")
+                logger.debug(f"      ✗ Epic {epic_key} has NO children/subtasks in active sprints")
                 return False
             
         except Exception as e:
@@ -508,7 +585,7 @@ class BackwardCheckAnalyzer:
             # Try alternative approach: check for any children first
             try:
                 logger.info(f"   Trying alternative: Check if epic has any children...")
-                jql_any_children = f'parent = {epic_key}'
+                jql_any_children = f'"Epic Link" = {epic_key}'
                 any_children = self.jira_client.fetch_issues(jql_any_children, max_results=5)
                 if any_children:
                     logger.info(f"   Epic {epic_key} has {len(any_children)} children (but sprint check failed)")

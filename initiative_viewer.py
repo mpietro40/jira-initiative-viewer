@@ -16,6 +16,8 @@ import tempfile
 import uuid
 import argparse
 import io
+import webbrowser
+import threading
 from datetime import datetime, timedelta
 from jira_client import JiraClient
 from initiative_viewer_pdf import InitiativeViewerPDFGenerator
@@ -957,8 +959,15 @@ def export_confluence_wiki():
                                 if epic_idx < len(epics):
                                     epic = epics[epic_idx]
                                     epic_key = epic.get('key', 'Unknown')
+                                    epic_summary = epic.get('summary', 'No summary')
+                                    epic_assignee = epic.get('assignee', 'Unassigned')
                                     epic_status = epic.get('status', 'Unknown')
                                     risk = epic.get('risk_probability')
+                                    
+                                    # CRITICAL: Replace pipe characters to avoid breaking table cells
+                                    epic_summary = epic_summary.replace('|', '/')
+                                    epic_assignee = epic_assignee.replace('|', '/')
+                                    epic_status = epic_status.replace('|', '/')
                                     
                                     # Check if completed
                                     status_lower = epic_status.lower()
@@ -971,7 +980,7 @@ def export_confluence_wiki():
                                     if is_completed:
                                         risk_icon = f"!{base_url}/Green.jpg!"  # Green for completed
                                     elif risk == 1:
-                                        risk_icon = f"!{base_url}/Green.jpg!"  # Green
+                                        risk_icon = f"!{base_url}/GreenLowRisk.jpg!"  # Green
                                     elif risk == 2:
                                         risk_icon = f"!{base_url}/Yellow.jpg!"  # Yellow
                                     elif risk == 3:
@@ -983,11 +992,21 @@ def export_confluence_wiki():
                                     else:
                                         risk_icon = f"!{base_url}/unknown.jpg!"  # Unknown/None
                                     
-                                    # Create epic cell with risk icon and link
-                                    if is_completed:
-                                        row += f" {risk_icon} -[{epic_key}|{jira_url}/browse/{epic_key}]- |"
+                                    # Truncate summary if too long (80 chars like in HTML)
+                                    if len(epic_summary) > 80:
+                                        epic_summary_short = epic_summary[:80] + "..."
                                     else:
-                                        row += f" {risk_icon} [{epic_key}|{jira_url}/browse/{epic_key}] |"
+                                        epic_summary_short = epic_summary
+                                    
+                                    # Create epic cell with risk icon, link, summary (in italic), assignee, and status
+                                    # Format: [icon] KEY: _Summary_ (Assignee / Status)
+                                    # Note: Using / instead of | to avoid breaking cells, _text_ for italic
+                                    if is_completed:
+                                        epic_info = f"{risk_icon} -[{epic_key}|{jira_url}/browse/{epic_key}]- _{epic_summary_short}_ {{color:#718096}}(👤 {epic_assignee} / Status: {epic_status}){{color}}"
+                                    else:
+                                        epic_info = f"{risk_icon} [{epic_key}|{jira_url}/browse/{epic_key}] _{epic_summary_short}_ {{color:#718096}}(👤 {epic_assignee} / Status: {epic_status}){{color}}"
+                                    
+                                    row += f" {epic_info} |"
                                 else:
                                     # No epic for this area at this index
                                     row += " |"
@@ -1004,7 +1023,8 @@ def export_confluence_wiki():
         wiki_lines.append("h3. Legend")
         wiki_lines.append("")
         wiki_lines.append("*Risk Level Colors:*")
-        wiki_lines.append("* {color:green}Green{color} - Low risk / Committed / Resolved")
+        wiki_lines.append("* {color:green}Green thumbs up{color} - Done / Resolved")
+        wiki_lines.append("* {color:green}Green{color} - Low risk / Committed")
         wiki_lines.append("* {color:orange}Orange{color} - Medium risk")
         wiki_lines.append("* {color:red}Red{color} - High risk / Can't deliver")
         wiki_lines.append("")
@@ -1153,6 +1173,19 @@ def export_jira_keys():
         return f"Jira keys export failed: {str(e)}", 500
 
 
+def open_browser(port, delay=1.5):
+    """Open the web browser after a short delay to allow server to start."""
+    import time
+    time.sleep(delay)
+    url = f"http://localhost:{port}"
+    logger.info(f"🌐 Opening browser at {url}")
+    try:
+        webbrowser.open(url)
+    except Exception as e:
+        logger.warning(f"Could not automatically open browser: {e}")
+        logger.info(f"Please manually open: {url}")
+
+
 if __name__ == '__main__':
     # Parse command-line arguments
     parser = argparse.ArgumentParser(description='Initiative Viewer - Jira Hierarchy Analyzer')
@@ -1160,15 +1193,45 @@ if __name__ == '__main__':
                        help='Use cached data from previous analysis instead of fetching from Jira')
     parser.add_argument('--port', type=int, default=5001,
                        help='Port to run the Flask application (default: 5001)')
+    parser.add_argument('--no-browser', action='store_true',
+                       help='Do not automatically open web browser')
     args = parser.parse_args()
     
     # Configure app based on arguments
     app.config['USE_CACHE'] = args.cached
     
+    # Print startup banner
+    print("\n" + "="*70)
+    print("🎯 INITIATIVE VIEWER - JIRA HIERARCHY ANALYZER")
+    print("="*70)
+    print(f"\n✓ Starting web server on port {args.port}...")
+    
     if args.cached:
+        print("🔄 Cache mode enabled - will use most recent cached data")
         logger.info("🔄 ========================================")
         logger.info("🔄 CACHE MODE ENABLED")
         logger.info("🔄 Will load most recent cached data")
         logger.info("🔄 ========================================")
     
-    app.run(debug=True, host='0.0.0.0', port=args.port)
+    print(f"\n📋 NEXT STEPS:")
+    if not args.no_browser:
+        print(f"   1. Your browser will open automatically in a moment")
+        print(f"   2. Fill in your Jira details in the web form")
+        print(f"   3. Click 'Analyze' to view the initiative hierarchy")
+    else:
+        print(f"   1. Open your web browser")
+        print(f"   2. Navigate to: http://localhost:{args.port}")
+        print(f"   3. Fill in your Jira details and click 'Analyze'")
+    
+    print(f"\n💡 TIP: You can find your Jira API token at:")
+    print(f"   https://id.atlassian.com/manage-profile/security/api-tokens")
+    
+    print(f"\n⏹️  To stop the server: Press Ctrl+C or close this window")
+    print("="*70 + "\n")
+    
+    # Open browser automatically unless disabled
+    if not args.no_browser:
+        threading.Thread(target=open_browser, args=(args.port,), daemon=True).start()
+    
+    # Start the Flask application
+    app.run(debug=False, host='0.0.0.0', port=args.port, use_reloader=False)

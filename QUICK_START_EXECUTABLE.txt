@@ -1,0 +1,161 @@
+=============================================================================
+           INITIATIVE VIEWER - WINDOWS EXECUTABLE QUICK START
+=============================================================================
+
+WHAT IS THIS?
+  The Initiative Viewer analyzes Jira hierarchies showing:
+  Business Initiative → Feature → Sub-Feature → Epic relationships
+
+NO INSTALLATION REQUIRED!
+  This executable includes everything needed to run:
+  ✓ Python interpreter
+  ✓ All required libraries
+  ✓ Web interface
+  ✓ PDF generation
+
+=============================================================================
+HOW TO USE (IT'S SUPER SIMPLE!)
+=============================================================================
+
+STEP 1: Double-click InitiativeViewer.exe
+----------------------------------------
+That's it! The application will:
+  ✓ Start the web server
+  ✓ Automatically open your web browser
+  ✓ Show a form for your Jira details
+
+
+STEP 2: Fill in the Web Form
+----------------------------------------
+Enter your information in the browser:
+  • Jira URL: https://your-jira-instance.com
+  • API Token: (see below on how to get this)
+  • JQL Query: project = YOURPROJECT AND type = "Business Initiative"
+  • Fix Version: Your release version
+
+
+STEP 3: Click "Analyze"
+----------------------------------------
+  • Wait for the analysis to complete (progress shown on screen)
+  • View the interactive hierarchy
+  • Generate PDF reports if needed
+
+
+STEP 4: Stop the Application
+----------------------------------------
+  • Close the console window, OR
+  • Press Ctrl+C in the console window
+
+=============================================================================
+GETTING YOUR JIRA API TOKEN (ONE-TIME SETUP)
+=============================================================================
+
+1. Go to: https://id.atlassian.com/manage-profile/security/api-tokens
+2. Click "Create API token"
+3. Name it: "Initiative Viewer"
+4. Copy the token and paste it in the web form
+
+⚠️ IMPORTANT: Save this token securely! You can reuse it each time.
+
+=============================================================================
+COMMON JIRA JQL QUERIES
+=============================================================================
+
+All Business Initiatives in a project:
+  project = MYPROJ AND type = "Business Initiative"
+
+Initiatives for a specific fix version:
+  project = MYPROJ AND type = "Business Initiative" AND fixVersion = "v1.0"
+
+Initiatives in a specific status:
+  project = MYPROJ AND type = "Business Initiative" AND status != Done
+
+Initiatives assigned to a team:
+  project = MYPROJ AND type = "Business Initiative" AND "Team" = "Team A"
+
+Multiple projects:
+  project IN (PROJ1, PROJ2) AND type = "Business Initiative"
+
+=============================================================================
+COMMAND LINE OPTIONS
+=============================================================================
+
+Required:
+  --jira-url      Your Jira instance URL (e.g., https://jira.company.com)
+  --email         Your Jira email address
+  --token         Your Jira API token
+  --jql           JQL query to find Business Initiatives
+
+Optional:
+  --port          Port number (default: 5100)
+  --max-results   Maximum initiatives to analyze (default: 50)
+
+=============================================================================
+TROUBLESHOOTING
+=============================================================================
+
+"Cannot connect to Jira"
+  → Check your Jira URL includes https://
+  → Verify your API token is correct
+  → Ensure you have network access to Jira
+
+"Port 5100 is already in use"
+  → Another application is using that port
+  → Try a different port: --port 5200
+
+"Browser shows 'Can't reach this page'"
+  → Wait 10-15 seconds for the server to start
+  → Check the console shows "Running on..."
+  → Try http://127.0.0.1:5100 instead
+
+Slow analysis:
+  → Reduce max-results: --max-results 20
+  → Use more specific JQL query
+  → Second run will be faster (cached)
+
+=============================================================================
+TIPS & TRICKS
+=============================================================================
+
+✓ Create a desktop shortcut to InitiativeViewer.exe
+  Then: Right-click → Properties → Add your command line arguments
+
+✓ Save your API token as an environment variable:
+  set JIRA_TOKEN=your_token_here
+  Then use: --token %JIRA_TOKEN%
+
+✓ Create a .bat file with your settings:
+  @echo off
+  InitiativeViewer.exe ^
+    --jira-url https://jira.company.com ^
+    --email your.email@company.com ^
+    --token %JIRA_TOKEN% ^
+    --jql "project = PROJ AND type = 'Business Initiative'"
+
+✓ Use the cache! Re-running with same JQL is much faster
+
+=============================================================================
+SECURITY NOTE
+=============================================================================
+
+⚠️ Your API token is like a password - keep it secure!
+  - Don't share it with others
+  - Don't commit it to version control
+  - Revoke old tokens you're not using
+
+=============================================================================
+NEED HELP?
+=============================================================================
+
+Read the full documentation: DEPLOYMENT_GUIDE.md
+
+Check application logs in the console window for error details
+
+Verify your Jira permissions allow you to view the issues
+
+=============================================================================
+
+Version: February 2026
+Author: Pietro Maffi
+
+=============================================================================
