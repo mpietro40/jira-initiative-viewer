@@ -52,7 +52,6 @@ jobs:
     
     - name: Run tests with pytest
       run: |
-        cd PerseusLeadTime || true
         pytest tests/test_initiative_viewer.py -v --tb=short --cov=. --cov-report=xml --cov-report=term
     
     - name: Upload coverage reports
@@ -92,14 +91,13 @@ jobs:
     
     - name: Build executable
       run: |
-        cd PerseusLeadTime
         python build_initiative_viewer.py
     
     - name: Upload executable artifact
       uses: actions/upload-artifact@v3
       with:
         name: InitiativeViewer-Windows
-        path: PerseusLeadTime/dist/InitiativeViewer.exe
+        path: ./dist/InitiativeViewer.exe
         retention-days: 30
     
     - name: Build Summary
@@ -108,3 +106,4 @@ jobs:
         echo "" >> $env:GITHUB_STEP_SUMMARY
         echo "✅ Windows executable built successfully" >> $env:GITHUB_STEP_SUMMARY
         echo "📦 Artifact available for download" >> $env:GITHUB_STEP_SUMMARY
+
