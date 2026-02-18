@@ -1,5 +1,9 @@
 # Initiative Viewer Requirements
+# Core dependencies for standalone executable
+
 Flask==3.0.0
+waitress==3.0.0  # Production WSGI server
 requests==2.31.0
 Werkzeug==3.0.1
 reportlab==4.0.4
+Pillow>=10.0.0  # Required by reportlab for PDF generation

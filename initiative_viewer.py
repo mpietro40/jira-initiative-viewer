@@ -19,6 +19,7 @@ import io
 import webbrowser
 import threading
 from datetime import datetime, timedelta
+from waitress import serve
 from jira_client import JiraClient
 from initiative_viewer_pdf import InitiativeViewerPDFGenerator
 from backward_check_analyzer import BackwardCheckAnalyzer
@@ -517,6 +518,29 @@ def analyze_backward_check():
         return render_template('initiative_form.html', error=f"Backward Check failed: {str(e)}")
 
 
+def normalize_jql_query(query: str) -> str:
+    """
+    Normalize JQL query for comparison.
+    Handles equivalent forms like 'type' vs 'issuetype'.
+    """
+    if not query:
+        return ""
+    
+    # Normalize whitespace
+    normalized = ' '.join(query.split())
+    
+    # Replace common equivalent forms (case-insensitive)
+    # 'type' is shorthand for 'issuetype' in JQL
+    import re
+    normalized = re.sub(r'\btype\s*=', 'issuetype =', normalized, flags=re.IGNORECASE)
+    
+    # Normalize quote styles (both " and ' are valid in JQL)
+    # Convert all single quotes to double quotes for consistency
+    normalized = normalized.replace("'", '"')
+    
+    return normalized.strip().lower()
+
+
 @app.route('/analyze', methods=['POST'])
 def analyze():
     """Process form and display hierarchy."""
@@ -554,8 +578,12 @@ def analyze():
             key, data, file_time = cache_result
             cached_query = data.get('query', '')
             
-            # Compare queries - only use cache if query matches
-            if cached_query.strip() == query.strip():
+            # Normalize both queries for comparison (handles 'type' vs 'issuetype', etc.)
+            normalized_cached = normalize_jql_query(cached_query)
+            normalized_current = normalize_jql_query(query)
+            
+            # Compare normalized queries
+            if normalized_cached == normalized_current:
                 initiatives = data.get('initiatives', [])
                 cached_fix_version = data.get('fix_version', 'Unknown')
                 all_areas = data.get('all_areas', [])
@@ -563,7 +591,15 @@ def analyze():
                 session['data_key'] = key
                 
                 age_minutes = int((datetime.now() - file_time).total_seconds() / 60)
-                logger.info(f"✅ Cache HIT: Query matches! Loaded {len(initiatives)} initiatives (age: {age_minutes} minutes)")
+                
+                # Check if queries are exactly the same or just equivalent after normalization
+                if cached_query.strip() == query.strip():
+                    logger.info(f"✅ Cache HIT: Query exact match! Loaded {len(initiatives)} initiatives (age: {age_minutes} minutes)")
+                else:
+                    logger.info(f"✅ Cache HIT: Query equivalent match (normalized)! Loaded {len(initiatives)} initiatives (age: {age_minutes} minutes)")
+                    logger.info(f"   Cached:  {cached_query}")
+                    logger.info(f"   Current: {query}")
+                    logger.info(f"   (Both normalize to: {normalized_cached})")
                 
                 return render_template(
                     'initiative_hierarchy.html',
@@ -577,8 +613,29 @@ def analyze():
                 )
             else:
                 logger.warning(f"⚠️ Cache MISS: Query changed!")
-                logger.warning(f"   Cached query: {cached_query[:50]}...")
-                logger.warning(f"   Current query: {query[:50]}...")
+                logger.warning(f"   === Original Queries ===")
+                logger.warning(f"   Cached:  {cached_query}")
+                logger.warning(f"   Current: {query}")
+                
+                logger.warning(f"   === Normalized Queries (for comparison) ===")
+                logger.warning(f"   Cached:  {normalized_cached}")
+                logger.warning(f"   Current: {normalized_current}")
+                
+                # Show detailed difference in original queries
+                if len(cached_query) != len(query):
+                    logger.warning(f"   Original length difference: cached={len(cached_query)} chars, current={len(query)} chars")
+                
+                # Find first difference in original queries
+                min_len = min(len(cached_query), len(query))
+                for i in range(min_len):
+                    if cached_query[i] != query[i]:
+                        start = max(0, i - 20)
+                        end = min(min_len, i + 20)
+                        logger.warning(f"   First difference at position {i}:")
+                        logger.warning(f"      Cached:  ...{cached_query[start:end]}...")
+                        logger.warning(f"      Current: ...{query[start:end]}...")
+                        break
+                
                 logger.info("   → Fetching fresh data from Jira")
                 # Fall through to normal processing
         else:
@@ -935,7 +992,7 @@ def export_confluence_wiki():
         wiki_lines.append(f"h1. Initiative Report - {fix_version}")
         wiki_lines.append("")
         wiki_lines.append(f"*Generated:* {datetime.now().strftime('%B %d, %Y at %H:%M')}")
-        wiki_lines.append(f"*Query:* {{{{monospace}}}}{query}{{{{monospace}}}}")
+        wiki_lines.append(f"*Query:* {query}")
         
         if is_limited:
             wiki_lines.append(f"*Note:* Showing {limit_count} of {original_count} initiatives (limited)")
@@ -1273,5 +1330,14 @@ if __name__ == '__main__':
     if not args.no_browser:
         threading.Thread(target=open_browser, args=(args.port,), daemon=True).start()
     
-    # Start the Flask application
-    app.run(debug=False, host='0.0.0.0', port=args.port, use_reloader=False)
+    # Start the Waitress WSGI server (production-quality)
+    logger.info(f"🚀 Starting Waitress server on 0.0.0.0:{args.port}")
+    try:
+        serve(app, host='0.0.0.0', port=args.port, threads=4, connection_limit=100, channel_timeout=60)
+    except KeyboardInterrupt:
+        print("\n\n⏹️  Server stopped by user")
+        logger.info("Server stopped by user")
+    except Exception as e:
+        logger.error(f"❌ Server error: {e}")
+        print(f"\n❌ Server error: {e}")
+        raise

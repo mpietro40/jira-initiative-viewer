@@ -32,68 +32,73 @@ a = Analysis(
         'click',
         'blinker',
         
+        # Waitress WSGI server
+        'waitress',
+        'waitress.server',
+        'waitress.task',
+        'waitress.adjustments',
+        'waitress.channel',
+        'waitress.utilities',
+        
         # HTTP and API
         'requests',
         'urllib3',
-        
-        # Data processing
-        'pandas',
-        'pandas._libs.tslibs.timedeltas',
-        'pandas._libs.tslibs.nattype',
-        'pandas._libs.tslibs.np_datetime',
-        'pandas._libs.skiplist',
-        'numpy',
-        'scipy',
-        'scipy.special',
-        'scipy.special._ufuncs_cxx',
-        
-        # Date/time
-        'datetime',
-        'dateutil',
-        'pytz',
+        'charset_normalizer',
+        'certifi',
+        'idna',
         
         # PDF generation
         'reportlab',
         'reportlab.pdfgen',
+        'reportlab.pdfgen.canvas',
         'reportlab.lib',
         'reportlab.lib.colors',
         'reportlab.lib.pagesizes',
+        'reportlab.lib.styles',
+        'reportlab.lib.units',
+        'reportlab.lib.enums',
         'reportlab.platypus',
         'reportlab.graphics',
         'reportlab.graphics.shapes',
         'reportlab.graphics.charts',
         'reportlab.graphics.charts.barcharts',
+        'reportlab.graphics.charts.piecharts',
         
-        # Visualization
-        'matplotlib',
-        'matplotlib.pyplot',
-        'matplotlib.backends',
-        'matplotlib.backends.backend_agg',
-        'seaborn',
-        
-        # Standard library
-        'logging',
-        'typing',
-        'collections',
-        'pickle',
-        'tempfile',
-        'uuid',
-        'argparse',
-        'io',
-        're',
-        'json',
-        'csv',
-        'threading',
-        'time',
-        'html',
+        # Pillow (reportlab dependency)
+        'PIL',
+        'PIL.Image',
     ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
     excludes=[
+        # Testing frameworks
         'pytest',
         'pytest-flask',
         'unittest',
+        'nose',
+        'coverage',
+        
+        # Heavy libraries not used
+        'pandas',
+        'numpy',
+        'scipy',
+        'matplotlib',
+        'seaborn',
+        'bokeh',
+        'plotly',
+        
+        # Development tools
+        'IPython',
+        'jupyter',
+        'notebook',
+        
+        # Other unused
+        'tkinter',
+        'turtle',
+        'test',
+        'asyncio',
+        'multiprocessing',
     ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
@@ -123,5 +128,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=None,  # Add icon path if you have one: 'static/favicon.ico'
+    icon='static/favicon.ico',  # Application icon
 )

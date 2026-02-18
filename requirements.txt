@@ -1,0 +1,29 @@
+# Sprint Analyzer Dependencies - Render.com Compatible
+# Core web framework
+Flask==3.0.0
+Werkzeug==3.0.1
+waitress==3.0.0  # Production WSGI server
+
+# HTTP requests for Jira API
+requests==2.31.0
+responses==0.24.1
+
+# Data analysis and numerical operations (using pre-compiled wheels)
+pandas==2.0.3
+numpy==1.24.3
+scipy==1.10.1
+
+# Date and time utilities
+python-dateutil==2.8.2
+pytz==2023.3
+
+# PDF report generation
+reportlab==4.0.4
+
+# Visualization (lighter versions with pre-compiled wheels)
+matplotlib==3.7.2
+seaborn==0.12.2
+
+# Testing framework
+pytest==7.4.0
+pytest-flask==1.2.0
