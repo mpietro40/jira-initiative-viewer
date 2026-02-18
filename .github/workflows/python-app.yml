@@ -6,7 +6,7 @@ on:
     paths:
       - 'initiative_viewer.py'
       - 'initiative_viewer_pdf.py'
-      - 'tests/test_initiative_viewer.py'
+      - 'test/test_initiative_viewer.py'
       - 'requirements.txt'
       - 'requirements-test.txt'
   pull_request:
@@ -52,8 +52,7 @@ jobs:
     
     - name: Run tests with pytest
       run: |
-        cd PerseusLeadTime || true
-        pytest tests/test_initiative_viewer.py -v --tb=short --cov=. --cov-report=xml --cov-report=term
+        pytest test/test_initiative_viewer.py -v --tb=short --cov=. --cov-report=xml --cov-report=term
     
     - name: Upload coverage reports
       uses: codecov/codecov-action@v3
@@ -92,14 +91,13 @@ jobs:
     
     - name: Build executable
       run: |
-        cd PerseusLeadTime
         python build_initiative_viewer.py
     
     - name: Upload executable artifact
       uses: actions/upload-artifact@v3
       with:
         name: InitiativeViewer-Windows
-        path: PerseusLeadTime/dist/InitiativeViewer.exe
+        path: ./dist/InitiativeViewer.exe
         retention-days: 30
     
     - name: Build Summary
