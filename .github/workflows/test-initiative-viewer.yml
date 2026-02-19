@@ -6,7 +6,7 @@ on:
     paths:
       - 'initiative_viewer.py'
       - 'initiative_viewer_pdf.py'
-      - 'tests/test_initiative_viewer.py'
+      - 'test/test_initiative_viewer.py'
       - 'requirements.txt'
       - 'requirements-test.txt'
   pull_request:
@@ -52,7 +52,7 @@ jobs:
     
     - name: Run tests with pytest
       run: |
-        pytest tests/test_initiative_viewer.py -v --tb=short --cov=. --cov-report=xml --cov-report=term
+        pytest test/test_initiative_viewer.py -v --tb=short --cov=. --cov-report=xml --cov-report=term
     
     - name: Upload coverage reports
       uses: codecov/codecov-action@v3
@@ -97,7 +97,7 @@ jobs:
       uses: actions/upload-artifact@v3
       with:
         name: InitiativeViewer-Windows
-        path: ./dist/InitiativeViewer.exe
+        path: dist/InitiativeViewer.exe
         retention-days: 30
     
     - name: Build Summary
@@ -106,4 +106,3 @@ jobs:
         echo "" >> $env:GITHUB_STEP_SUMMARY
         echo "✅ Windows executable built successfully" >> $env:GITHUB_STEP_SUMMARY
         echo "📦 Artifact available for download" >> $env:GITHUB_STEP_SUMMARY
-
