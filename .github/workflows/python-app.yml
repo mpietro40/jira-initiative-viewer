@@ -1,1 +1,109 @@
+name: Initiative Viewer Tests
+
+on:
+  push:
+    branches: [ main, master, develop ]
+    paths:
+      - 'initiative_viewer.py'
+      - 'initiative_viewer_pdf.py'
+      - 'test/test_initiative_viewer.py'
+      - 'requirements.txt'
+      - 'requirements-test.txt'
+  pull_request:
+    branches: [ main, master, develop ]
+  workflow_dispatch:  # Allow manual triggering
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.8', '3.9', '3.10', '3.11']
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Cache pip packages
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements-test.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements-test.txt
+    
+    - name: Run linting (flake8)
+      run: |
+        # Stop the build if there are Python syntax errors or undefined names
+        flake8 initiative_viewer.py initiative_viewer_pdf.py --count --select=E9,F63,F7,F82 --show-source --statistics
+        # Exit-zero treats all errors as warnings
+        flake8 initiative_viewer.py initiative_viewer_pdf.py --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+      continue-on-error: true
+    
+    - name: Run tests with pytest
+      run: |
+        pytest test/test_initiative_viewer.py -v --tb=short --cov=. --cov-report=xml --cov-report=term
+    
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v3
+      if: matrix.python-version == '3.10'
+      with:
+        file: ./coverage.xml
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: false
+    
+    - name: Test Summary
+      run: |
+        echo "### Test Results :rocket:" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "✅ All tests passed for Python ${{ matrix.python-version }}" >> $GITHUB_STEP_SUMMARY
+
+  build-executable:
+    runs-on: windows-latest
+    needs: test
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller
+    
+    - name: Build executable
+      run: |
+        python build_initiative_viewer.py
+    
+    - name: Upload executable artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: InitiativeViewer-Windows
+        path: dist/InitiativeViewer.exe
+        retention-days: 30
+    
+    - name: Build Summary
+      run: |
+        echo "### Build Results :package:" >> $env:GITHUB_STEP_SUMMARY
+        echo "" >> $env:GITHUB_STEP_SUMMARY
+        echo "✅ Windows executable built successfully" >> $env:GITHUB_STEP_SUMMARY
+        echo "📦 Artifact available for download" >> $env:GITHUB_STEP_SUMMARY
 
