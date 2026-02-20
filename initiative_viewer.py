@@ -647,18 +647,18 @@ def analyze():
     
     # Validate inputs
     if not all([jira_url, access_token, query, fix_version]):
-        return render_template('initiative_form.html', error="All fields are required")
+        return render_template('initiative_form.html', error="All fields are required"), 400
     
     # Validate URL format
     if not jira_url.startswith('http'):
-        return render_template('initiative_form.html', error="Jira URL must start with http:// or https://")
+        return render_template('initiative_form.html', error="Jira URL must start with http:// or https://"), 400
     
     # Validate and clean JQL query
     logger.info(f"🔍 Received JQL Query: {query}")
     
     if ' and order by' in query.lower():
         return render_template('initiative_form.html',
-            error="Invalid JQL: Remove 'AND' before 'ORDER BY'. Example: ... ORDER BY Rank")
+            error="Invalid JQL: Remove 'AND' before 'ORDER BY'. Example: ... ORDER BY Rank"), 400
     
     try:
         # Initialize Jira client
@@ -714,7 +714,17 @@ def analyze():
     
     except Exception as e:
         logger.error(f"Analysis failed: {str(e)}")
-        return render_template('initiative_form.html', error=f"Analysis failed: {str(e)}")
+        error_msg = str(e)
+        # Determine appropriate status code based on error type
+        # Use 400 for client errors (auth, permission, JQL) and 500 for server errors
+        if '401' in error_msg or '403' in error_msg or '400' in error_msg or \
+           'Unauthorized' in error_msg or 'Authentication' in error_msg or \
+           'permission' in error_msg.lower() or 'Forbidden' in error_msg or \
+           'Bad Request' in error_msg or 'JQL' in error_msg:
+            status_code = 400
+        else:
+            status_code = 500
+        return render_template('initiative_form.html', error=f"Analysis failed: {error_msg}"), status_code
 
 
 @app.route('/export_pdf', methods=['GET'])
