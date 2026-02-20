@@ -486,9 +486,11 @@ class TestWithMockJiraClient:
 class TestJiraErrorScenarios:
     """Test handling of various Jira error scenarios."""
     
+    @patch('initiative_viewer.get_most_recent_cache')  # Prevent cache from bypassing errors
     @patch('initiative_viewer.JiraClient')
-    def test_analyze_with_auth_error(self, mock_jira_class, client, valid_credentials):
+    def test_analyze_with_auth_error(self, mock_jira_class, mock_cache, client, valid_credentials):
         """Test analysis handles authentication error gracefully."""
+        mock_cache.return_value = None  # No cache hit
         mock_jira_class.return_value = get_mock_jira_client(simulate_error='auth')
         
         response = client.post('/analyze', data=valid_credentials)
@@ -497,9 +499,11 @@ class TestJiraErrorScenarios:
         assert response.status_code in [400, 500]
         assert b'401' in response.data or b'Unauthorized' in response.data or b'Authentication' in response.data
     
+    @patch('initiative_viewer.get_most_recent_cache')  # Prevent cache from bypassing errors
     @patch('initiative_viewer.JiraClient')
-    def test_analyze_with_permission_error(self, mock_jira_class, client, valid_credentials):
+    def test_analyze_with_permission_error(self, mock_jira_class, mock_cache, client, valid_credentials):
         """Test analysis handles permission error gracefully."""
+        mock_cache.return_value = None  # No cache hit
         mock_jira_class.return_value = get_mock_jira_client(simulate_error='permission')
         
         response = client.post('/analyze', data=valid_credentials)
@@ -508,9 +512,11 @@ class TestJiraErrorScenarios:
         assert response.status_code in [400, 500]
         assert b'403' in response.data or b'permission' in response.data.lower()
     
+    @patch('initiative_viewer.get_most_recent_cache')  # Prevent cache from bypassing errors
     @patch('initiative_viewer.JiraClient')
-    def test_analyze_with_jql_error(self, mock_jira_class, client, valid_credentials):
+    def test_analyze_with_jql_error(self, mock_jira_class, mock_cache, client, valid_credentials):
         """Test analysis handles JQL syntax error gracefully."""
+        mock_cache.return_value = None  # No cache hit
         mock_jira_class.return_value = get_mock_jira_client(simulate_error='jql')
         
         response = client.post('/analyze', data=valid_credentials)
