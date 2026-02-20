@@ -1,17 +1,7 @@
 name: Initiative Viewer Tests
 
 on:
-  push:
-    branches: [ main, master, develop ]
-    paths:
-      - 'initiative_viewer.py'
-      - 'initiative_viewer_pdf.py'
-      - 'test/test_initiative_viewer.py'
-      - 'requirements.txt'
-      - 'requirements-test.txt'
-  pull_request:
-    branches: [ main, master, develop ]
-  workflow_dispatch:  # Allow manual triggering
+  workflow_dispatch:  # Only runs if manually triggered
 
 jobs:
   test:
@@ -106,3 +96,4 @@ jobs:
         echo "" >> $env:GITHUB_STEP_SUMMARY
         echo "✅ Windows executable built successfully" >> $env:GITHUB_STEP_SUMMARY
         echo "📦 Artifact available for download" >> $env:GITHUB_STEP_SUMMARY
+
