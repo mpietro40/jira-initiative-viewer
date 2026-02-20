@@ -1,4 +1,4 @@
-name: Initiative Viewer Tests
+name: Defauls test check
 
 on:
   push:
@@ -106,4 +106,3 @@ jobs:
         echo "" >> $env:GITHUB_STEP_SUMMARY
         echo "✅ Windows executable built successfully" >> $env:GITHUB_STEP_SUMMARY
         echo "📦 Artifact available for download" >> $env:GITHUB_STEP_SUMMARY
-
