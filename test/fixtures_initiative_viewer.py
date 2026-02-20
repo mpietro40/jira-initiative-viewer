@@ -535,8 +535,7 @@ def get_valid_test_credentials():
     """Get valid credentials for testing (don't need to be real)."""
     return {
         'jira_url': 'https://jira.example.com',
-        'email': 'test@example.com',
-        'api_token': 'mock-token-12345',
-        'jql': 'project = PROJ AND type = "Business Initiative"',
+        'access_token': 'mock-token-12345',
+        'query': 'project = PROJ AND type = "Business Initiative"',
         'fix_version': 'v1.0'
     }
