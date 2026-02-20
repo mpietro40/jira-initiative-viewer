@@ -113,9 +113,8 @@ class TestWebInterface:
         
         response = client.post('/analyze', data={
             'jira_url': 'https://jira.example.com',
-            'email': 'test@example.com',
-            'api_token': 'test-token',
-            'jql': 'project = TEST',
+            'access_token': 'test-token',
+            'query': 'project = TEST',
             'fix_version': 'v1.0'
         })
         
@@ -405,9 +404,8 @@ class TestIntegration:
         # Step 1: Perform analysis
         response = client.post('/analyze', data={
             'jira_url': 'https://jira.example.com',
-            'email': 'test@example.com',
-            'api_token': 'test-token',
-            'jql': 'project = TEST',
+            'access_token': 'test-token',
+            'query': 'project = TEST',
             'fix_version': 'v1.0'
         }, follow_redirects=False)
         
@@ -529,7 +527,7 @@ class TestJiraErrorScenarios:
         mock_client.search_issues = Mock(return_value=[])
         mock_jira_class.return_value = mock_client
         
-        valid_credentials['jql'] = 'project = NONEXISTENT'
+        valid_credentials['query'] = 'project = NONEXISTENT'
         response = client.post('/analyze', data=valid_credentials)
         
         # Should handle empty results

@@ -240,19 +240,24 @@ class MockJiraClient:
     Simulates JiraClient behavior with predefined responses.
     """
     
-    def __init__(self, jira_url, email, api_token, simulate_error=None):
+    def __init__(self, base_url=None, access_token=None, jira_url=None, email=None, api_token=None, simulate_error=None):
         """
         Initialize mock client.
         
         Args:
-            jira_url: Jira URL (not actually used)
-            email: Email (not actually used)
-            api_token: API token (not actually used)
+            base_url: Jira base URL (matches real JiraClient signature)
+            access_token: Access token (matches real JiraClient signature)
+            jira_url: Jira URL (legacy parameter, alias for base_url)
+            email: Email (not used, for backward compatibility)
+            api_token: API token (legacy parameter, alias for access_token)
             simulate_error: Type of error to simulate ('auth', 'permission', 'jql', None)
         """
-        self.jira_url = jira_url
+        # Support both old and new signatures
+        self.jira_url = base_url or jira_url
+        self.base_url = self.jira_url
+        self.access_token = access_token or api_token
         self.email = email
-        self.api_token = api_token
+        self.api_token = self.access_token
         self.simulate_error = simulate_error
         self._search_call_count = 0
     
@@ -311,6 +316,24 @@ class MockJiraClient:
         
         # Default: return empty
         return []
+    
+    def fetch_issues(self, jql_query, max_results=50, start_at=0):
+        """
+        Mock fetch_issues method (alias for search_issues with different signature).
+        
+        Args:
+            jql_query: JQL query string
+            max_results: Maximum results to return
+            start_at: Starting index for pagination
+            
+        Returns:
+            List of mock issue dictionaries
+            
+        Raises:
+            Exception: If simulate_error is set
+        """
+        # Just delegate to search_issues for simplicity
+        return self.search_issues(jql_query, max_results=max_results)
     
     def get_issue(self, issue_key):
         """
@@ -536,6 +559,5 @@ def get_valid_test_credentials():
     return {
         'jira_url': 'https://jira.example.com',
         'access_token': 'mock-token-12345',
-        'query': 'project = PROJ AND type = "Business Initiative"',
-        'fix_version': 'v1.0'
+        'query_version': 'v1.0'
     }
