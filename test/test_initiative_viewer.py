@@ -95,26 +95,19 @@ class TestWebInterface:
         # May return 200 or 404 depending on implementation
         assert response.status_code in [200, 404]
     
+    @patch('initiative_viewer.get_most_recent_cache')  # Prevent cache interference
     @patch('initiative_viewer.JiraClient')
-    def test_analyze_endpoint_with_valid_data(self, mock_jira, client):
+    def test_analyze_endpoint_with_valid_data(self, mock_jira_class, mock_cache, client):
         """Test analyze endpoint with valid parameters."""
-        # Mock JiraClient
-        mock_client_instance = Mock()
-        mock_client_instance.search_issues.return_value = [{
-            'key': 'TEST-1',
-            'fields': {
-                'summary': 'Test',
-                'status': {'name': 'Open'},
-                'assignee': {'displayName': 'Test User'},
-                'issuelinks': []
-            }
-        }]
-        mock_jira.return_value = mock_client_instance
+        mock_cache.return_value = None  # No cache hit
+        # Use proper mock client
+        mock_client = get_mock_jira_client()
+        mock_jira_class.return_value = mock_client
         
         response = client.post('/analyze', data={
             'jira_url': 'https://jira.example.com',
             'access_token': 'test-token',
-            'query': 'project = TEST',
+            'query': 'project = PROJ AND type = "Business Initiative"',
             'fix_version': 'v1.0'
         })
         
@@ -384,28 +377,20 @@ class TestDataValidation:
 class TestIntegration:
     """Integration tests for full workflows."""
     
+    @patch('initiative_viewer.get_most_recent_cache')  # Prevent cache interference
     @patch('initiative_viewer.JiraClient')
-    def test_full_analysis_workflow(self, mock_jira, client):
+    def test_full_analysis_workflow(self, mock_jira_class, mock_cache, client):
         """Test complete workflow from analysis to PDF export."""
-        # Mock JiraClient
-        mock_client = Mock()
-        mock_client.search_issues.return_value = [{
-            'key': 'TEST-1',
-            'fields': {
-                'summary': 'Test Initiative',
-                'status': {'name': 'Open'},
-                'assignee': {'displayName': 'Test User'},
-                'issuelinks': [],
-                'customfield_12345': None  # risk probability field
-            }
-        }]
-        mock_jira.return_value = mock_client
+        mock_cache.return_value = None  # No cache hit
+        # Use proper mock client
+        mock_client = get_mock_jira_client()
+        mock_jira_class.return_value = mock_client
         
         # Step 1: Perform analysis
         response = client.post('/analyze', data={
             'jira_url': 'https://jira.example.com',
             'access_token': 'test-token',
-            'query': 'project = TEST',
+            'query': 'project = PROJ AND type = "Business Initiative"',
             'fix_version': 'v1.0'
         }, follow_redirects=False)
         
