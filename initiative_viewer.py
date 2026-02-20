@@ -207,7 +207,7 @@ class JiraHierarchyFetcher:
             return initiatives
         except Exception as e:
             logger.error(f"Failed to fetch initiatives: {str(e)}")
-            return []
+            raise  # Re-raise to let caller handle the error
     
     def _fetch_features(self, initiative_key: str, fix_version: str) -> List[Dict]:
         """Fetch Features under an initiative with specific fixVersion."""
