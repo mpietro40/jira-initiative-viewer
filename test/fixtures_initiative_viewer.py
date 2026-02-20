@@ -547,9 +547,8 @@ def get_mock_jira_client(simulate_error=None):
         MockJiraClient instance
     """
     return MockJiraClient(
-        jira_url='https://jira.example.com',
-        email='test@example.com',
-        api_token='mock-token-12345',
+        base_url='https://jira.example.com',
+        access_token='mock-token-12345',
         simulate_error=simulate_error
     )
 
@@ -559,5 +558,6 @@ def get_valid_test_credentials():
     return {
         'jira_url': 'https://jira.example.com',
         'access_token': 'mock-token-12345',
-        'query_version': 'v1.0'
+        'query': 'project = PROJ AND type = "Business Initiative"',
+        'fix_version': 'v1.0'
     }
